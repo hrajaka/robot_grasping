@@ -1,4 +1,7 @@
-#!/home/cc/ee106b/sp19/class/ee106b-abj/python-virtual-environments/env/bin/python
+#!/home/cc/ee106b/sp19/class/ee106b-aai/virtualenvironment/my_new_app/bin/python
+
+
+# #!/home/cc/ee106b/sp19/class/ee106b-abj/python-virtual-environments/env/bin/python
 
 """
 Starter script for EE106B grasp planning lab
@@ -14,10 +17,12 @@ import trimesh
 import warnings
 warnings.simplefilter("ignore", DeprecationWarning)
 
+import rospy
+
+
 # 106B lab imports
 from lab2.policies import GraspingPolicy
 try:
-    import rospy
     import tf
     from baxter_interface import gripper as baxter_gripper
     from path_planner import PathPlanner
@@ -132,8 +137,8 @@ if __name__ == '__main__':
 
     # Mesh loading and pre-processing
     mesh = trimesh.load_mesh('objects/{}.obj'.format(args.obj))
-    T_obj_world = lookup_transform(args.obj)
-    mesh.apply_transform(T_obj_world.matrix)
+    # T_obj_world = lookup_transform(args.obj)
+    # mesh.apply_transform(T_obj_world.matrix)
     mesh.fix_normals()
 
     # This policy takes a mesh and returns the best actions to execute on the robot
