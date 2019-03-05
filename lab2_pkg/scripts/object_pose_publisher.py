@@ -51,7 +51,7 @@ class ObjectTemplate(object):
 
 OBJECT_TEMPLATES = {
     ObjectTemplate(name='spray', ar_marker='ar_marker_8', t_ar_obj=[-0.089, -0.066, 0.106]),
-    ObjectTemplate(name='bar_clamp', ar_marker='ar_marker_9', t_ar_obj=[-0.089, -0.074, 0.035]),
+    ObjectTemplate(name='gearbox', ar_marker='ar_marker_9', t_ar_obj=[-0.089, -0.074, 0.035]),
     ObjectTemplate(name='mount2', ar_marker='ar_marker_10', t_ar_obj=[-0.103, -0.064, 0.038])
 }
 
@@ -71,15 +71,16 @@ if __name__ == '__main__':
     rate = rospy.Rate(1.0)
     while not rospy.is_shutdown():
         for object_template in OBJECT_TEMPLATES:
-	        try:
-	            broadcaster.sendTransform(
-	                object_template.t_ar_obj, 
-	                object_template.q_ar_obj, 
-	                #listener.getLatestCommonTime('base', 'left_hand_camera'),
+            try:
+                broadcaster.sendTransform(
+                    object_template.t_ar_obj, 
+                    object_template.q_ar_obj, 
+                    #listener.getLatestCommonTime('base', 'left_hand_camera'),
                     listener.getLatestCommonTime('base', 'right_hand_camera'),
-	                object_template.name, 
-	                object_template.ar_marker
-	            )
-	        except:
-	            continue
+                    object_template.name, 
+                    object_template.ar_marker
+                )
+                print('OBJECT_POSE_PUBLISHER sent transform {}'.format(object_template.name))
+            except:
+                continue
         rate.sleep()
