@@ -41,6 +41,7 @@ def lookup_transform(to_frame, from_frame='base'):
     -------
     :obj:`autolab_core.RigidTransform` AR tag position or object in world coordinates
     """
+    print('CALLING lookup_transform')
     if not ros_enabled:
         print 'I am the lookup transform function!  ' \
             + 'You\'re not using ROS, so I\'m returning the Identity Matrix.'
