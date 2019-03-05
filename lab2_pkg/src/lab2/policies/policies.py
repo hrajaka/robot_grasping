@@ -10,6 +10,7 @@ from autolab_core import RigidTransform
 import trimesh
 from visualization import Visualizer3D as vis3d
 import random
+import matplotlib as plt
 
 # 106B lab imports
 from lab2.metrics import (
@@ -51,8 +52,10 @@ class GraspingPolicy():
         self.n_vert = n_vert
         self.n_grasps = n_grasps
         self.n_facets = n_facets
+        self.n_execute = n_execute
         # This is a function, one of the functions in src/lab2/metrics/metrics.py
         self.metric = eval(metric_name)
+        self.metric_name = metric_name
 
     def vertices_to_baxter_hand_pose(grasp_vertices, approach_direction):
         """
@@ -124,15 +127,17 @@ class GraspingPolicy():
                 # pick two random points
                 idx1 = random.randint(0, len(vertices)-1)
                 idx2 = random.randint(0, len(vertices)-1)
+                
                 if idx1 == idx2:
-                    break
+                    continue
+
                 # now we compute the distance
                 distance = np.linalg.norm(vertices[idx1] - vertices[idx2])
                 if distance > MAX_HAND_DISTANCE or distance < MIN_HAND_DISTANCE:
-                    break
+                    continue
                 # checking if too close to ground
                 if vertices[idx1][2] < 0.03 or vertices[idx2][2] < 0.03:
-                    break
+                    continue
 
                 # at this point it means we have a valid pair of points
                 hasFoundValidGrasp = True
@@ -165,13 +170,18 @@ class GraspingPolicy():
         :obj:`list` of int
             grasp quality for each
         """
-        if self.metric == 'compute_force_closure':
-            grasp_qualities = compute_force_closure(grasp_vertices, grasp_normals, self.n_facets, CONTACT_MU, CONTACT_GAMMA, object_mass)
-        elif self.metric == 'compute_gravity_resistance':
-            grasp_qualities = compute_gravity_resistance(grasp_vertices, grasp_normals, self.n_facets, CONTACT_MU, CONTACT_GAMMA, object_mass)
-        else:
-            grasp_qualities = compute_custom_metric(grasp_vertices, grasp_normals, self.n_facets, CONTACT_MU, CONTACT_GAMMA, object_mass)
+        grasp_qualities = []
 
+        if self.metric_name == 'compute_force_closure':
+            for i in range(grasp_vertices.shape[0]):
+                grasp_qualities.append(compute_force_closure(grasp_vertices[i], grasp_normals[i], self.n_facets, CONTACT_MU, CONTACT_GAMMA, object_mass))
+        elif self.metric_name == 'compute_gravity_resistance':
+            for i in range(grasp_vertices.shape[0]):
+                grasp_qualities.append(compute_gravity_resistance(grasp_vertices[i], grasp_normals[i], self.n_facets, CONTACT_MU, CONTACT_GAMMA, object_mass))
+        else:
+            for i in range(grasp_vertices.shape[0]):
+                grasp_qualities.append(compute_custom_metric(grasp_vertices[i], grasp_normals[i], self.n_facets, CONTACT_MU, CONTACT_GAMMA, object_mass))
+        
         return grasp_qualities
 
     def vis(self, mesh, grasp_vertices, grasp_qualities):
@@ -191,7 +201,6 @@ class GraspingPolicy():
             vector of grasp qualities for each grasp
         """
         vis3d.mesh(mesh)
-        print('Apparently there are some zero length stuff happening')
 
         dirs = normalize(grasp_vertices[:,0] - grasp_vertices[:,1], axis=1)
 
@@ -235,23 +244,47 @@ class GraspingPolicy():
         # the mesh to get nicer candidate grasp points using trimesh.sample.sample_surface_even()
 
         ## computing vertices ##
+        # vertices, ids = trimesh.sample.sample_surface(mesh, self.n_vert)
         vertices, ids = trimesh.sample.sample_surface_even(mesh, self.n_vert)
         normals = mesh.face_normals[ids]
+
+        # do stuff with convex hull
 
         ## sampling some grasps ##
         grasp_vertices, grasp_normals = self.sample_grasps(vertices, normals)
         object_mass = OBJECT_MASS[obj_name]
 
-        ## visualizing all grasps ##
-        #print('graps.shape', graps.shape)
-
-        self.vis(mesh, grasp_vertices, np.ones(len(grasp_vertices)))
-
         ## computing grasp qualities and finding the n best ##
-        grasp_qualities = self.score_grasps(vertices, normals, object_mass)
-        # n = something that we have to give as argument??
-        best_n_grasps = grasp_qualities.argsort()[-n:][::-1] #picking the best n indices
-        grasp_vertices = grasp_qualities[best_n_grasps]
+        grasp_qualities = self.score_grasps(grasp_vertices, grasp_normals, object_mass)
+        
+        ## visualizing all grasps ##
+        self.vis(mesh, grasp_vertices, np.array(grasp_qualities))
+        
+        ## keeping only the best n_execute ##
+        grasp_vertices = list(grasp_vertices)
+        grasp_normals = list(grasp_normals)
+        best_grasp_vertices = []
+        best_grasp_normals = []
+        best_grasp_qualities = []
+        nbr_best_found = 0
+        
+        while nbr_best_found < self.n_execute:
+            idx_max = np.argmax(grasp_qualities)
+            best_grasp_vertices.append(grasp_vertices[idx_max])
+            best_grasp_normals.append(grasp_normals[idx_max])
+            best_grasp_qualities.append(grasp_qualities[idx_max])
+            grasp_vertices.pop(idx_max)
+            grasp_normals.pop(idx_max)
+            grasp_qualities.pop(idx_max)
+            nbr_best_found += 1 
+
+        best_grasp_vertices = best_grasp_vertices[::-1][:self.n_execute]
+        best_grasp_normals = best_grasp_normals[::-1][:self.n_execute]
+        best_grasp_qualities = best_grasp_qualities[::-1][:self.n_execute]
+
+        self.vis(mesh, np.array(best_grasp_vertices), np.array(best_grasp_qualities))
+
+
 
         ## generating the hand poses ##
         # approach_direction = ?? Maybe something orthogonal to the line between the two points

@@ -43,16 +43,17 @@ def compute_force_closure(vertices, normals, num_facets, mu, gamma, object_mass)
 
     ## checking for first point of contact ##
     vec_between_vertices = vertices[1]-vertices[0]
-    angle = np.arccos( np.matmul((normals[0].reshape((1,3)), vec_between_vertices)) / (np.linalg.norm(normals[0]) * np.linalg.norm(vec_between_vertices)))
 
-    if angle >= np.pi/2 - np.actan(mu):
+    angle = np.arccos( np.matmul(normals[0].reshape((1,3)), vec_between_vertices) / (np.linalg.norm(normals[0]) * np.linalg.norm(vec_between_vertices)))
+
+    if angle >= np.pi/2 - np.arctan(mu):
         return 0
 
     ## checking for second point of contact ##
     vec_between_vertices = vertices[0]-vertices[1]
-    angle = np.arccos( np.matmul((normals[1].reshape((1,3)), vec_between_vertices)) / (np.linalg.norm(normals[1]) * np.linalg.norm(vec_between_vertices)))
+    angle = np.arccos( np.matmul(normals[1].reshape((1,3)), vec_between_vertices) / (np.linalg.norm(normals[1]) * np.linalg.norm(vec_between_vertices)))
 
-    if angle >= np.pi/2 - np.actan(mu):
+    if angle >= np.pi/2 - np.arctan(mu):
         return 0
 
 
