@@ -46,6 +46,11 @@ def compute_force_closure(vertices, normals, num_facets, mu, gamma, object_mass)
 
     angle = np.arccos( np.matmul(normals[0].reshape((1,3)), vec_between_vertices) / (np.linalg.norm(normals[0]) * np.linalg.norm(vec_between_vertices)))
 
+    # print(vertices[0], vertices[1])
+    # print(vec_between_vertices)
+    # print(angle)
+    # print(np.arctan(mu))
+    # input()
     if abs(angle) >= abs(np.arctan(mu)):
         return 0
 

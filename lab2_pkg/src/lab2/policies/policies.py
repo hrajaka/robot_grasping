@@ -22,9 +22,10 @@ from lab2.utils import length, normalize
 
 # YOUR CODE HERE
 # probably don't need to change these (BUT confirm that they're correct)
-MAX_HAND_DISTANCE = .04
+MAX_HAND_DISTANCE = 0.12
+# MAX_HAND_DISTANCE = .04
 
-MIN_HAND_DISTANCE = .01
+MIN_HAND_DISTANCE = .05
 CONTACT_MU = 0.5
 CONTACT_GAMMA = 0.1
 
@@ -128,7 +129,7 @@ class GraspingPolicy():
                 # pick two random points
                 idx1 = random.randint(0, len(vertices)-1)
                 idx2 = random.randint(0, len(vertices)-1)
-                
+
                 if idx1 == idx2:
                     continue
 
@@ -137,7 +138,7 @@ class GraspingPolicy():
                 if distance > MAX_HAND_DISTANCE or distance < MIN_HAND_DISTANCE:
                     continue
                 # checking if too close to ground
-                if vertices[idx1][2] < 0.001 or vertices[idx2][2] < 0.001:
+                if vertices[idx1][2] < 0.03 or vertices[idx2][2] < 0.03:
                     continue
 
                 # at this point it means we have a valid pair of points
@@ -254,9 +255,15 @@ class GraspingPolicy():
         vertices, ids = trimesh.sample.sample_surface_even(mesh, self.n_vert)
         normals = mesh.face_normals[ids]
 
+        print('units', trimesh.base.units)
+
         ## sampling some grasps ##
         grasp_vertices, grasp_normals = self.sample_grasps(vertices, normals)
         object_mass = OBJECT_MASS[obj_name]
+
+        # ## visualizing all grasps ##
+        # self.vis(mesh, grasp_vertices, np.ones(len(grasp_vertices)))
+
 
         ## computing grasp qualities and finding the n best ##
         grasp_qualities = self.score_grasps(grasp_vertices, grasp_normals, object_mass)
