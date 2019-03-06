@@ -1,5 +1,6 @@
 #!/home/cc/ee106b/sp19/class/ee106b-aai/virtualenvironment/my_new_app/bin/python
 
+
 # #!/home/cc/ee106b/sp19/class/ee106b-abj/python-virtual-environments/env/bin/python
 
 """
@@ -45,27 +46,20 @@ def lookup_transform(to_frame, from_frame='base'):
     -------
     :obj:`autolab_core.RigidTransform` AR tag position or object in world coordinates
     """
-    tag_rot = None
-    tag_pos = None
-
     print('CALLING lookup_transform')
-    print('to_frame: {}, from_frame: {}'.format(to_frame, from_frame))
     if not ros_enabled:
         print 'I am the lookup transform function!  ' \
             + 'You\'re not using ROS, so I\'m returning the Identity Matrix.'
         return RigidTransform(to_frame=from_frame, from_frame=to_frame)
-    print('initializing transformlistener')
     listener = tf.TransformListener()
     attempts, max_attempts, rate = 0, 10, rospy.Rate(1.0)
     while attempts < max_attempts:
-        print('attempt {}'.format(attempts))
         try:
             t = listener.getLatestCommonTime(from_frame, to_frame)
             tag_pos, tag_rot = listener.lookupTransform(from_frame, to_frame, t)
-        except Exception as e:
-            print(e)
+        except:
             rate.sleep()
-        attempts += 1
+            attempts += 1
     rot = RigidTransform.rotation_from_quaternion(tag_rot)
     return RigidTransform(rot, tag_pos, to_frame=from_frame, from_frame=to_frame)
 
@@ -141,7 +135,7 @@ if __name__ == '__main__':
         np.random.seed(0)
 
     print('starting main')
-    rospy.init_node('main_node')
+
     # Mesh loading and pre-processing
     mesh = trimesh.load_mesh('objects/{}.obj'.format(args.obj))
     # T_obj_world = lookup_transform(args.obj)

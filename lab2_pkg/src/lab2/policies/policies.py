@@ -23,6 +23,7 @@ from lab2.utils import length, normalize
 # YOUR CODE HERE
 # probably don't need to change these (BUT confirm that they're correct)
 MAX_HAND_DISTANCE = .04
+
 MIN_HAND_DISTANCE = .01
 CONTACT_MU = 0.5
 CONTACT_GAMMA = 0.1
@@ -136,7 +137,7 @@ class GraspingPolicy():
                 if distance > MAX_HAND_DISTANCE or distance < MIN_HAND_DISTANCE:
                     continue
                 # checking if too close to ground
-                if vertices[idx1][2] < 0.03 or vertices[idx2][2] < 0.03:
+                if vertices[idx1][2] < 0.001 or vertices[idx2][2] < 0.001:
                     continue
 
                 # at this point it means we have a valid pair of points
@@ -204,7 +205,6 @@ class GraspingPolicy():
 
         dirs = normalize(grasp_vertices[:,0] - grasp_vertices[:,1], axis=1)
 
-
         midpoints = (grasp_vertices[:,0] + grasp_vertices[:,1]) / 2
         grasp_endpoints = np.zeros(grasp_vertices.shape)
         grasp_vertices[:,0] = midpoints + dirs*MAX_HAND_DISTANCE/2
@@ -245,10 +245,14 @@ class GraspingPolicy():
 
         ## computing vertices ##
         # vertices, ids = trimesh.sample.sample_surface(mesh, self.n_vert)
+        # vertices, ids = trimesh.sample.sample_surface_even(mesh, self.n_vert)
+
+        # convex_hull = trimesh.convex.convex_hull(mesh) 
+        # intersection = trimesh.boolean.intersection([mesh, convex_hull], engine='scad') 
+
+
         vertices, ids = trimesh.sample.sample_surface_even(mesh, self.n_vert)
         normals = mesh.face_normals[ids]
-
-        # do stuff with convex hull
 
         ## sampling some grasps ##
         grasp_vertices, grasp_normals = self.sample_grasps(vertices, normals)
@@ -278,12 +282,7 @@ class GraspingPolicy():
             grasp_qualities.pop(idx_max)
             nbr_best_found += 1 
 
-        best_grasp_vertices = best_grasp_vertices[::-1][:self.n_execute]
-        best_grasp_normals = best_grasp_normals[::-1][:self.n_execute]
-        best_grasp_qualities = best_grasp_qualities[::-1][:self.n_execute]
-
         self.vis(mesh, np.array(best_grasp_vertices), np.array(best_grasp_qualities))
-
 
 
         ## generating the hand poses ##
