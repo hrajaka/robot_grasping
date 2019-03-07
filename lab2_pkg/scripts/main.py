@@ -147,9 +147,9 @@ if __name__ == '__main__':
     rospy.init_node('main_node')
     # Mesh loading and pre-processing
     mesh = trimesh.load_mesh('objects/{}.obj'.format(args.obj))
-    T_obj_world = lookup_transform(args.obj)
-    print(T_obj_world)
-    mesh.apply_transform(T_obj_world.matrix)
+    # T_obj_world = lookup_transform(args.obj)
+    # print(T_obj_world)
+    # mesh.apply_transform(T_obj_world.matrix)
     mesh.fix_normals()
 
     # This policy takes a mesh and returns the best actions to execute on the robot
@@ -180,6 +180,6 @@ if __name__ == '__main__':
                 execute_grasp(T_grasp_world, planner, gripper)
                 repeat = raw_input("repeat? [y|n] ") == 'y'
     else:
-        raise NotImplementedError
+        # raise NotImplementedError
         current_pose = None
         T_grasp_worlds = grasping_policy.top_n_actions(mesh, args.obj)
