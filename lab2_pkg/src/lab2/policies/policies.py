@@ -138,7 +138,8 @@ class GraspingPolicy():
                 if distance > MAX_HAND_DISTANCE or distance < MIN_HAND_DISTANCE:
                     continue
                 # checking if too close to ground
-                if vertices[idx1][2] < 0.03 or vertices[idx2][2] < 0.03:
+                if vertices[idx1][2] < 0.0 or vertices[idx2][2] < 0.0:
+                # if vertices[idx1][2] < 0.03 or vertices[idx2][2] < 0.03:
 
                     continue
 

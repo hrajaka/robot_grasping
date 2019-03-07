@@ -81,6 +81,9 @@ def execute_grasp(T_grasp_world, planner, gripper):
     T_grasp_world : :obj:`autolab_core.RigidTransform`
         desired position of gripper relative to the world frame
     """
+
+
+
     def close_gripper():
         """closes the gripper"""
         gripper.close(block=True)
@@ -122,8 +125,8 @@ def parse_args():
         """Which grasp metric in grasp_metrics.py to use.  
         Options: compute_force_closure, compute_gravity_resistance, compute_custom_metric"""
     )
-    parser.add_argument('-arm', '-a', type=str, default='left', help=
-        'Options: left, right.  Default: left'
+    parser.add_argument('-arm', '-a', type=str, default='right', help=
+        'Options: left, right.  Default: right'
     )
     parser.add_argument('--baxter', action='store_true', help=
         """If you don\'t use this flag, you will only visualize the grasps.  This is 
@@ -144,8 +147,9 @@ if __name__ == '__main__':
     rospy.init_node('main_node')
     # Mesh loading and pre-processing
     mesh = trimesh.load_mesh('objects/{}.obj'.format(args.obj))
-    # T_obj_world = lookup_transform(args.obj)
-    # mesh.apply_transform(T_obj_world.matrix)
+    T_obj_world = lookup_transform(args.obj)
+    print(T_obj_world)
+    mesh.apply_transform(T_obj_world.matrix)
     mesh.fix_normals()
 
     # This policy takes a mesh and returns the best actions to execute on the robot
@@ -158,15 +162,24 @@ if __name__ == '__main__':
     )
     # Each grasp is represented by T_grasp_world, a RigidTransform defining the 
     # position of the end effector
-    T_grasp_worlds = grasping_policy.top_n_actions(mesh, args.obj)
 
     # Execute each grasp on the baxter / sawyer
     if args.baxter:
         gripper = baxter_gripper.Gripper(args.arm)
-        planner = PathPlanner('{}_arm'.format(arm))
+        planner = PathPlanner('{}_arm'.format(args.arm))
+
+        current_pose = lookup_transform('right_gripper')
+        print(current_pose)
+        raise NotImplementedError
+
+        T_grasp_worlds = grasping_policy.top_n_actions(mesh, args.obj)
 
         for T_grasp_world in T_grasp_worlds:
             repeat = True
             while repeat:
                 execute_grasp(T_grasp_world, planner, gripper)
                 repeat = raw_input("repeat? [y|n] ") == 'y'
+    else:
+        raise NotImplementedError
+        current_pose = None
+        T_grasp_worlds = grasping_policy.top_n_actions(mesh, args.obj)
