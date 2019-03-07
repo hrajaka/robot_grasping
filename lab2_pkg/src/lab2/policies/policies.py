@@ -139,6 +139,7 @@ class GraspingPolicy():
                     continue
                 # checking if too close to ground
                 if vertices[idx1][2] < 0.03 or vertices[idx2][2] < 0.03:
+
                     continue
 
                 # at this point it means we have a valid pair of points
@@ -186,7 +187,7 @@ class GraspingPolicy():
         
         return grasp_qualities
 
-    def vis(self, mesh, grasp_vertices, grasp_qualities):
+    def vis(self, mesh, grasp_vertices, grasp_qualities, grasp_normals):
         """
         Pass in any grasp and its associated grasp quality.  this function will plot
         each grasp on the object and plot the grasps as a bar between the points, with
@@ -208,12 +209,23 @@ class GraspingPolicy():
 
         midpoints = (grasp_vertices[:,0] + grasp_vertices[:,1]) / 2
         grasp_endpoints = np.zeros(grasp_vertices.shape)
-        grasp_vertices[:,0] = midpoints + dirs*MAX_HAND_DISTANCE/2
-        grasp_vertices[:,1] = midpoints - dirs*MAX_HAND_DISTANCE/2
+        grasp_endpoints[:,0] = midpoints + dirs*MAX_HAND_DISTANCE/2
+        grasp_endpoints[:,1] = midpoints - dirs*MAX_HAND_DISTANCE/2
 
-        for grasp, quality in zip(grasp_vertices, grasp_qualities):
+        n0 = np.zeros(grasp_endpoints.shape)
+        n1 = np.zeros(grasp_endpoints.shape)
+
+        normal_scale = 0.01
+        n0[:, 0] = grasp_vertices[:, 0]
+        n0[:, 1] = grasp_vertices[:, 0] + normal_scale * grasp_normals[:, 0]
+        n1[:, 0] = grasp_vertices[:, 1]
+        n1[:, 1] = grasp_vertices[:, 1] + normal_scale * grasp_normals[:, 1]
+
+        for grasp, quality, normal0, normal1 in zip(grasp_endpoints, grasp_qualities, n0, n1):
             color = [min(1, 2*(1-quality)), min(1, 2*quality), 0, 1]
             vis3d.plot3d(grasp, color=color, tube_radius=.001)
+            vis3d.plot3d(normal0, color=0, tube_radius=.002)
+            vis3d.plot3d(normal1, color=0, tube_radius=.002)
         vis3d.show()
 
     def top_n_actions(self, mesh, obj_name, vis=True):
@@ -244,32 +256,30 @@ class GraspingPolicy():
         # Some objects have vertices in odd places, so you should sample evenly across
         # the mesh to get nicer candidate grasp points using trimesh.sample.sample_surface_even()
 
-        ## computing vertices ##
+        ## old stuff ##
         # vertices, ids = trimesh.sample.sample_surface(mesh, self.n_vert)
         # vertices, ids = trimesh.sample.sample_surface_even(mesh, self.n_vert)
-
         # convex_hull = trimesh.convex.convex_hull(mesh) 
         # intersection = trimesh.boolean.intersection([mesh, convex_hull], engine='scad') 
 
-
+        ## computing vertices ##
         vertices, ids = trimesh.sample.sample_surface_even(mesh, self.n_vert)
-        normals = mesh.face_normals[ids]
+        normals = mesh.face_normals[ids] #face or vertex ????
+        normals = -1 * normals
 
-        print('units', trimesh.base.units)
+        print(len(mesh.faces))
+        print(len(mesh.face_normals))
 
         ## sampling some grasps ##
         grasp_vertices, grasp_normals = self.sample_grasps(vertices, normals)
         object_mass = OBJECT_MASS[obj_name]
-
-        # ## visualizing all grasps ##
-        # self.vis(mesh, grasp_vertices, np.ones(len(grasp_vertices)))
 
 
         ## computing grasp qualities and finding the n best ##
         grasp_qualities = self.score_grasps(grasp_vertices, grasp_normals, object_mass)
         
         ## visualizing all grasps ##
-        self.vis(mesh, grasp_vertices, np.array(grasp_qualities))
+        self.vis(mesh, grasp_vertices, np.array(grasp_qualities), np.array(grasp_normals))
         
         ## keeping only the best n_execute ##
         grasp_vertices = list(grasp_vertices)
@@ -289,7 +299,7 @@ class GraspingPolicy():
             grasp_qualities.pop(idx_max)
             nbr_best_found += 1 
 
-        self.vis(mesh, np.array(best_grasp_vertices), np.array(best_grasp_qualities))
+        self.vis(mesh, np.array(best_grasp_vertices), np.array(best_grasp_qualities), np.array(best_grasp_normals))
 
 
         ## generating the hand poses ##
