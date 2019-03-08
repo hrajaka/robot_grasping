@@ -59,7 +59,7 @@ class GraspingPolicy():
         self.metric = eval(metric_name)
         self.metric_name = metric_name
 
-    def vertices_to_baxter_hand_pose(grasp_vertices, approach_direction):
+    def vertices_to_baxter_hand_pose(self, grasp_vertices, approach_direction, obj_name):
         """
         takes the contacts positions in the object frame and returns the hand pose T_obj_gripper
         BE CAREFUL ABOUT THE FROM FRAME AND TO FRAME.  the RigidTransform class' frames are
@@ -87,7 +87,72 @@ class GraspingPolicy():
         # the orientation we want to have is the approach_direction??
 
         # apparently it is supposed to be in the object coordinates (cf function execute_grasp in main.py)
-        raise NotImplementedError
+        
+        midpoint = (grasp_vertices[0] + grasp_vertices[1]) / 2
+
+        finger_length = 0.06
+        gripper_half_width = 0.06
+        
+        ## Method 1: with good old linear algebra ##
+        # does not work because the first 3 components are always 0 -> underdetermined?
+        
+        # v00 = grasp_vertices[0][0]
+        # v01 = grasp_vertices[0][1]
+        # v02 = grasp_vertices[0][2]
+       
+        # v10 = grasp_vertices[1][0]
+        # v11 = grasp_vertices[1][1]
+        # v12 = grasp_vertices[1][2]
+
+        # palm_position = midpoint + finger_length * approach_direction
+        # p0 = palm_position[0]
+        # p1 = palm_position[1]
+        # p2 = palm_position[2]
+
+        # A = np.array([[v00, v01, v02, 0,   0,   0,   0,   0,   0  ], 
+        #               [0,   0,   0,   v00, v01, v02, 0,   0,   0  ], 
+        #               [0,   0,   0,   0,   0,   0,   v00, v01, v02], 
+        #               [v10, v11, v12, 0,   0,   0,   0,   0,   0  ], 
+        #               [0,   0,   0,   v10, v11, v12, 0,   0,   0  ], 
+        #               [0,   0,   0,   0,   0,   0,   v10, v11, v12],
+        #               [p0,  p1,  p2,  0,   0,   0,   0,   0,   0  ], 
+        #               [0,   0,   0,   p0,  p1,  p2,  0,   0,   0  ], 
+        #               [0,   0,   0,   0,   0,   0,   p0,  p1,  p2 ]])
+
+        # b = np.array([[0], 
+        #               [gripper_half_width],
+        #               [0],
+        #               [0],
+        #               [-gripper_half_width],         
+        #               [0],
+        #               [0],
+        #               [0],
+        #               [-finger_length]])
+ 
+ 
+        # x = np.linalg.solve(A, b)
+
+        # rot_mat = x.reshape((3,3))
+        # print(rot_mat)
+        # print(np.linalg.det(rot_mat))
+
+        ## Method 2: saying z = approach dire ; y = axis between the two contacts ; x = cross product between y and z##
+
+        z = normalize(approach_direction)
+        y = normalize(grasp_vertices[0] - grasp_vertices[1])
+        x = np.cross(y, z)
+
+        rot_mat = np.array([x, y, z]).T
+        print(np.linalg.det(rot_mat))
+
+        # so rot_map transforms a vector from the gripper frame to the object frame
+
+        rigid_trans = RigidTransform(rot_mat, midpoint, to_frame='right_gripper', from_frame=obj_name) #not sure of names of frames here
+
+        print('midpoint', midpoint)
+
+        return rigid_trans
+
 
     def sample_grasps(self, vertices, normals):
         """
@@ -138,9 +203,8 @@ class GraspingPolicy():
                 if distance > MAX_HAND_DISTANCE or distance < MIN_HAND_DISTANCE:
                     continue
                 # checking if too close to ground
-                if vertices[idx1][2] < 0.0 or vertices[idx2][2] < 0.0:
+                if vertices[idx1][2] < 0.0 or vertices[idx2][2] < 0.0: #has to be changed when we apply the transform to the mesh
                 # if vertices[idx1][2] < 0.03 or vertices[idx2][2] < 0.03:
-
                     continue
 
                 # at this point it means we have a valid pair of points
@@ -233,7 +297,7 @@ class GraspingPolicy():
 
         ## initalizing stuff ##
         visualize = True
-        nb_directions_to_test = 5
+        nb_directions_to_test = 6
         finger_length = 0.06
         normal_scale = 0.01
         plane_normal = normalize(grasp_vertices[0] - grasp_vertices[1])
@@ -335,19 +399,20 @@ class GraspingPolicy():
         # intersection = trimesh.boolean.intersection([mesh, convex_hull], engine='scad')
 
         ## computing vertices ##
+        print('SAMPLING VERTICES')
         vertices, ids = trimesh.sample.sample_surface_even(mesh, self.n_vert)
         normals = mesh.face_normals[ids] #face or vertex ????
         normals = -1 * normals
 
-        print(len(mesh.faces))
-        print(len(mesh.face_normals))
-
         ## sampling some grasps ##
+        print('SAMPLING GRASPS')
+
         grasp_vertices, grasp_normals = self.sample_grasps(vertices, normals)
         object_mass = OBJECT_MASS[obj_name]
 
 
         ## computing grasp qualities and finding the n best ##
+        print('COMPUTING GRASP QUALITIES')
         grasp_qualities = self.score_grasps(grasp_vertices, grasp_normals, object_mass)
 
         ## visualizing all grasps ##
@@ -374,14 +439,25 @@ class GraspingPolicy():
         best_grasp_vertices = np.array(best_grasp_vertices)
         best_grasp_qualities = np.array(best_grasp_qualities)
         best_grasp_normals = np.array(best_grasp_normals)
-        # self.vis(mesh, best_grasp_vertices, best_grasp_qualities, best_grasp_normals)
+
+        ## visualizing the best grasps ##
+        self.vis(mesh, best_grasp_vertices, best_grasp_qualities, best_grasp_normals)
 
 
         ## generating the hand poses ##
+        print('GENERATING HAND POSES')
         hand_poses = []
 
         for i in range(self.n_execute):
             approach_dir = self.compute_approach_direction(mesh, best_grasp_vertices[i], best_grasp_qualities[i], best_grasp_normals[i])
-            # hand_poses.append(self.vertices_to_baxter_hand_pose(best_grasp_vertices[i], approach_dir))
+            # WARNING: maybe we should take the opposite of approach_dir -> need to visualize it to make sure
+            approach_dir = - approach_dir
+
+            if type(approach_dir) == int:
+                # it means the palm will bump in the part no matter from where it arrives
+                print('grasp not doable')
+                raise Exception
+            
+            hand_poses.append(self.vertices_to_baxter_hand_pose(best_grasp_vertices[i], approach_dir, obj_name))
 
         return hand_poses

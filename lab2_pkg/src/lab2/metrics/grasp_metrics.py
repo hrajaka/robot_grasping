@@ -147,7 +147,8 @@ def contact_forces_exist(vertices, normals, num_facets, mu, gamma, desired_wrenc
     ## we compute the wrench ##
     f = np.linalg.lstsq(G, desired_wrench)
 
-    # WARNING this ;ight not work because the least square solution might not work, but other solutions might be in the friction cone
+    # WARNING this might not work because the least square solution might not work, but other solutions might be in the friction cone
+    # cf a comment by Ryan OGorman on Piazza
 
     ## we check if it belongs to the friction cone ##
     forces = [f[:4], f[4:]]
@@ -201,6 +202,7 @@ def compute_gravity_resistance(vertices, normals, num_facets, mu, gamma, object_
     ## we build the gravity wrench and see if it can be resisted ##
     gravity_wrench = np.array([0, 0, -9.81*object_mass, 0, 0, 0])
 
+    # WARNING: cf comment around line 150 about why this might not work
     can_resist = contact_forces_exist(vertices, normals, num_facets, mu, gamma, gravity_wrench)
 
     return can_resist
