@@ -83,9 +83,6 @@ class GraspingPolicy():
         # - from_frame (aka str)
         # - to_frame (aka str)
 
-        # the position we want to go to is in the middle of the two points
-        # the orientation we want to have is the approach_direction??
-
         # apparently it is supposed to be in the object coordinates (cf function execute_grasp in main.py)
         
         midpoint = (grasp_vertices[0] + grasp_vertices[1]) / 2
@@ -93,63 +90,17 @@ class GraspingPolicy():
         finger_length = 0.06
         gripper_half_width = 0.06
         
-        ## Method 1: with good old linear algebra ##
-        # does not work because the first 3 components are always 0 -> underdetermined?
-        
-        # v00 = grasp_vertices[0][0]
-        # v01 = grasp_vertices[0][1]
-        # v02 = grasp_vertices[0][2]
-       
-        # v10 = grasp_vertices[1][0]
-        # v11 = grasp_vertices[1][1]
-        # v12 = grasp_vertices[1][2]
-
-        # palm_position = midpoint + finger_length * approach_direction
-        # p0 = palm_position[0]
-        # p1 = palm_position[1]
-        # p2 = palm_position[2]
-
-        # A = np.array([[v00, v01, v02, 0,   0,   0,   0,   0,   0  ], 
-        #               [0,   0,   0,   v00, v01, v02, 0,   0,   0  ], 
-        #               [0,   0,   0,   0,   0,   0,   v00, v01, v02], 
-        #               [v10, v11, v12, 0,   0,   0,   0,   0,   0  ], 
-        #               [0,   0,   0,   v10, v11, v12, 0,   0,   0  ], 
-        #               [0,   0,   0,   0,   0,   0,   v10, v11, v12],
-        #               [p0,  p1,  p2,  0,   0,   0,   0,   0,   0  ], 
-        #               [0,   0,   0,   p0,  p1,  p2,  0,   0,   0  ], 
-        #               [0,   0,   0,   0,   0,   0,   p0,  p1,  p2 ]])
-
-        # b = np.array([[0], 
-        #               [gripper_half_width],
-        #               [0],
-        #               [0],
-        #               [-gripper_half_width],         
-        #               [0],
-        #               [0],
-        #               [0],
-        #               [-finger_length]])
- 
- 
-        # x = np.linalg.solve(A, b)
-
-        # rot_mat = x.reshape((3,3))
-        # print(rot_mat)
-        # print(np.linalg.det(rot_mat))
-
-        ## Method 2: saying z = approach dire ; y = axis between the two contacts ; x = cross product between y and z##
-
         z = normalize(approach_direction)
         y = normalize(grasp_vertices[0] - grasp_vertices[1])
         x = np.cross(y, z)
 
-        rot_mat = np.array([x, y, z]).T
-        print(np.linalg.det(rot_mat))
+        rot_mat_opposite = np.array([x, y, z]).T
+        p_opposite = midpoint
 
-        # so rot_map transforms a vector from the gripper frame to the object frame
+        rot_mat = rot_mat_opposite.T
+        p = - np.matmul(rot_mat_opposite.T, p_opposite)
 
-        rigid_trans = RigidTransform(rot_mat, midpoint, to_frame='right_gripper', from_frame=obj_name) #not sure of names of frames here
-
-        print('midpoint', midpoint)
+        rigid_trans = RigidTransform(rot_mat, p, to_frame='right_gripper', from_frame=obj_name) 
 
         return rigid_trans
 
@@ -308,18 +259,19 @@ class GraspingPolicy():
         theta = np.pi / nb_directions_to_test
         rot_mat = rotation_3d(-plane_normal, theta)
 
-        horizontal_direction = np.cross(plane_normal, np.array([0, 0, 1]))
+        horizontal_direction = normalize(np.cross(plane_normal, np.array([0, 0, 1])))
         directions_to_test = [horizontal_direction] #these are vectors
         approach_directions = [np.array([midpoint, midpoint + horizontal_direction * normal_scale])] #these are two points for visualization
 
         for i in range(nb_directions_to_test-1):
-            directions_to_test.append(np.matmul(rot_mat, directions_to_test[-1]))
+            directions_to_test.append(normalize(np.matmul(rot_mat, directions_to_test[-1])))
             approach_directions.append(np.array([midpoint, midpoint + directions_to_test[-1] * normal_scale]) )
 
         ## computing the palm position for each approach direction ##
         palm_positions = []
         for i in range(nb_directions_to_test):
             palm_positions.append(midpoint + finger_length * directions_to_test[i])
+            print('len', np.linalg.norm(finger_length * directions_to_test[i]))
 
 
         if visualize:

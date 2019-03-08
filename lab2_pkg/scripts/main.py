@@ -202,13 +202,10 @@ if __name__ == '__main__':
     rospy.init_node('main_node')
 
 
-    toto = lookup_transform('right_gripper')
-    print(toto)
-
     # Mesh loading and pre-processing
     mesh = trimesh.load_mesh('objects/{}.obj'.format(args.obj))
-    T_obj_world = lookup_transform(args.obj)
-    print(T_obj_world)
+    # T_obj_world = lookup_transform(args.obj)
+    # print(T_obj_world)
     # mesh.apply_transform(T_obj_world.matrix)
     mesh.fix_normals()
 
