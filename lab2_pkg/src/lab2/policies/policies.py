@@ -293,6 +293,82 @@ class GraspingPolicy():
             vis3d.plot3d(normal1, color=(0, 0, 0), tube_radius=.002)
         vis3d.show()
 
+    def vis_transform(self, mesh, G_transform):
+        """
+        Pass in any grasp and its associated grasp quality.  this function will plot
+        each grasp on the object and plot the grasps as a bar between the points, with
+        colored dots on the line endpoints representing the grasp quality associated
+        with each grasp
+
+        Parameters
+        ----------
+        mesh : :obj:`Trimesh`
+        grasp_vertices : mx2x3 :obj:`numpy.ndarray`
+            m grasps.  Each grasp containts two contact points.  Each contact point
+            is a 3 dimensional vector, hence the shape mx2x3
+        grasp_qualities : mx' :obj:`numpy.ndarray`
+            vector of grasp qualities for each grasp
+        """
+
+        G = G_transform.matrix
+        print('G')
+        print(G)
+
+        scale = 0.01
+        o = np.array([0, 0, 0, 1])
+        x = np.array([scale, 0, 0, 1])
+        y = np.array([0, scale, 0, 1])
+        z = np.array([0, 0, scale, 1])
+
+        ot = np.matmul(G, o)
+        xt = np.matmul(G, x)
+        yt = np.matmul(G, y)
+        zt = np.matmul(G, z)
+
+        vis3d.mesh(mesh, style='wireframe')
+
+        #dirs = normalize(grasp_vertices[:,0] - grasp_vertices[:,1], axis=1)
+
+        #midpoints = (grasp_vertices[:,0] + grasp_vertices[:,1]) / 2
+        #grasp_endpoints = np.zeros(grasp_vertices.shape)
+        #grasp_endpoints[:,0] = midpoints + dirs*MAX_HAND_DISTANCE/2
+        #grasp_endpoints[:,1] = midpoints - dirs*MAX_HAND_DISTANCE/2
+
+        #n0 = np.zeros(grasp_endpoints.shape)
+        #n1 = np.zeros(grasp_endpoints.shape)
+
+        #normal_scale = 0.01
+        #n0[:, 0] = grasp_vertices[:, 0]
+        #n0[:, 1] = grasp_vertices[:, 0] + normal_scale * grasp_normals[:, 0]
+        #n1[:, 0] = grasp_vertices[:, 1]
+        #n1[:, 1] = grasp_vertices[:, 1] + normal_scale * grasp_normals[:, 1]
+
+        #for grasp, quality, normal0, normal1 in zip(grasp_endpoints, grasp_qualities, n0, n1):
+        #    color = [min(1, 2*(1-quality)), min(1, 2*quality), 0, 1]
+        #    vis3d.plot3d(grasp, color=color, tube_radius=.001)
+        #    vis3d.plot3d(normal0, color=(0, 0, 0), tube_radius=.002)
+        #    vis3d.plot3d(normal1, color=(0, 0, 0), tube_radius=.002)
+        
+        #Plot origin axes
+        x_axis = np.array([o, x])[:, :3]
+        y_axis = np.array([o, y])[:, :3]
+        z_axis = np.array([o, z])[:, :3]
+
+        x_axis_t = np.array([ot, xt])[:, :3]
+        y_axis_t = np.array([ot, yt])[:, :3]
+        z_axis_t = np.array([ot, zt])[:, :3]
+
+
+        vis3d.plot3d(x_axis, color=(0.5,0,0), tube_radius=0.001)
+        vis3d.plot3d(y_axis, color=(0,0.5,0), tube_radius=0.001)
+        vis3d.plot3d(z_axis, color=(0,0,0.5), tube_radius=0.001)
+
+        vis3d.plot3d(x_axis_t, color=(255,0,0), tube_radius=0.001)
+        vis3d.plot3d(y_axis_t, color=(0,255,0), tube_radius=0.001)
+        vis3d.plot3d(z_axis_t, color=(0,0,255), tube_radius=0.001)
+
+        vis3d.show()
+
     def compute_approach_direction(self, mesh, grasp_vertices, grasp_quality, grasp_normals):
 
         ## initalizing stuff ##

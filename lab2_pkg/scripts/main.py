@@ -1,4 +1,5 @@
-#!/home/cc/ee106b/sp19/class/ee106b-aai/virtualenvironment/my_new_app/bin/python
+#!/home/cc/ee106b/sp19/class/ee106b-abj/python-virtual-environments/env/bin/python
+# #!/home/cc/ee106b/sp19/class/ee106b-aai/virtualenvironment/my_new_app/bin/python
 
 # #!/home/cc/ee106b/sp19/class/ee106b-abj/python-virtual-environments/env/bin/python
 
@@ -202,13 +203,10 @@ if __name__ == '__main__':
     rospy.init_node('main_node')
 
 
-    toto = lookup_transform('right_gripper')
-    print(toto)
-
     # Mesh loading and pre-processing
     mesh = trimesh.load_mesh('objects/{}.obj'.format(args.obj))
-    T_obj_world = lookup_transform(args.obj)
-    print(T_obj_world)
+    #T_obj_world = lookup_transform(args.obj)
+    #print(T_obj_world)
     # mesh.apply_transform(T_obj_world.matrix)
     mesh.fix_normals()
 
@@ -221,6 +219,13 @@ if __name__ == '__main__':
         args.n_facets, 
         args.metric
     )
+
+    G_rot = np.eye(3)
+    G_trans = np.array([0.02, 0, 0])
+    G = RigidTransform(G_rot, G_trans, 'object', 'gripper')
+
+    grasping_policy.vis_transform(mesh, G)
+
     # Each grasp is represented by T_grasp_world, a RigidTransform defining the 
     # position of the end effector
 
