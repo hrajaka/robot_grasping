@@ -51,7 +51,7 @@ class ObjectTemplate(object):
 
 OBJECT_TEMPLATES = {
     ObjectTemplate(name='spray', ar_marker='ar_marker_8', t_ar_obj=[-0.089, -0.066, 0.106]),
-    ObjectTemplate(name='gearbox', ar_marker='ar_marker_9', t_ar_obj=[-0.089, -0.074, 0.035]),
+    ObjectTemplate(name='gearbox', ar_marker='ar_marker_9', t_ar_obj=[-0.11, 0.06, 0.056]),
     ObjectTemplate(name='mount2', ar_marker='ar_marker_10', t_ar_obj=[-0.103, -0.064, 0.038])
 }
 

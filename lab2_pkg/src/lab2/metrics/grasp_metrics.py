@@ -44,14 +44,14 @@ def compute_force_closure(vertices, normals, num_facets, mu, gamma, object_mass)
     ## checking for first point of contact ##
     vec_between_vertices = vertices[1]-vertices[0]
 
-    angle = np.arccos( np.matmul(normals[0].reshape((1,3)), vec_between_vertices) / (np.linalg.norm(normals[0]) * np.linalg.norm(vec_between_vertices)))
+    angle = np.arccos( np.dot(normals[0], vec_between_vertices) / (np.linalg.norm(normals[0]) * np.linalg.norm(vec_between_vertices)))
 
     if abs(angle) >= abs(np.arctan(mu)):
         return 0
 
     ## checking for second point of contact ##
     vec_between_vertices = vertices[0]-vertices[1]
-    angle = np.arccos( np.matmul(normals[1].reshape((1,3)), vec_between_vertices) / (np.linalg.norm(normals[1]) * np.linalg.norm(vec_between_vertices)))
+    angle = np.arccos( np.dot(normals[1], vec_between_vertices) / (np.linalg.norm(normals[1]) * np.linalg.norm(vec_between_vertices)))
 
     if abs(angle) >= abs(np.arctan(mu)):
         return 0
@@ -147,6 +147,9 @@ def contact_forces_exist(vertices, normals, num_facets, mu, gamma, desired_wrenc
     ## we compute the wrench ##
     f = np.linalg.lstsq(G, desired_wrench)
 
+    # WARNING this might not work because the least square solution might not work, but other solutions might be in the friction cone
+    # cf a comment by Ryan OGorman on Piazza
+
     ## we check if it belongs to the friction cone ##
     forces = [f[:4], f[4:]]
     for force in forces:
@@ -199,6 +202,7 @@ def compute_gravity_resistance(vertices, normals, num_facets, mu, gamma, object_
     ## we build the gravity wrench and see if it can be resisted ##
     gravity_wrench = np.array([0, 0, -9.81*object_mass, 0, 0, 0])
 
+    # WARNING: cf comment around line 150 about why this might not work
     can_resist = contact_forces_exist(vertices, normals, num_facets, mu, gamma, gravity_wrench)
 
     return can_resist

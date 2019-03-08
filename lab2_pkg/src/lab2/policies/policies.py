@@ -18,13 +18,14 @@ from lab2.metrics import (
     compute_gravity_resistance,
     compute_custom_metric
 )
-from lab2.utils import length, normalize
+from lab2.utils import length, normalize, rotation_3d
 
 # YOUR CODE HERE
 # probably don't need to change these (BUT confirm that they're correct)
-MAX_HAND_DISTANCE = .04
+MAX_HAND_DISTANCE = 0.12
+# MAX_HAND_DISTANCE = .04
 
-MIN_HAND_DISTANCE = .01
+MIN_HAND_DISTANCE = .05
 CONTACT_MU = 0.5
 CONTACT_GAMMA = 0.1
 
@@ -58,7 +59,7 @@ class GraspingPolicy():
         self.metric = eval(metric_name)
         self.metric_name = metric_name
 
-    def vertices_to_baxter_hand_pose(grasp_vertices, approach_direction):
+    def vertices_to_baxter_hand_pose(self, grasp_vertices, approach_direction, obj_name):
         """
         takes the contacts positions in the object frame and returns the hand pose T_obj_gripper
         BE CAREFUL ABOUT THE FROM FRAME AND TO FRAME.  the RigidTransform class' frames are
@@ -86,7 +87,72 @@ class GraspingPolicy():
         # the orientation we want to have is the approach_direction??
 
         # apparently it is supposed to be in the object coordinates (cf function execute_grasp in main.py)
-        raise NotImplementedError
+        
+        midpoint = (grasp_vertices[0] + grasp_vertices[1]) / 2
+
+        finger_length = 0.06
+        gripper_half_width = 0.06
+        
+        ## Method 1: with good old linear algebra ##
+        # does not work because the first 3 components are always 0 -> underdetermined?
+        
+        # v00 = grasp_vertices[0][0]
+        # v01 = grasp_vertices[0][1]
+        # v02 = grasp_vertices[0][2]
+       
+        # v10 = grasp_vertices[1][0]
+        # v11 = grasp_vertices[1][1]
+        # v12 = grasp_vertices[1][2]
+
+        # palm_position = midpoint + finger_length * approach_direction
+        # p0 = palm_position[0]
+        # p1 = palm_position[1]
+        # p2 = palm_position[2]
+
+        # A = np.array([[v00, v01, v02, 0,   0,   0,   0,   0,   0  ], 
+        #               [0,   0,   0,   v00, v01, v02, 0,   0,   0  ], 
+        #               [0,   0,   0,   0,   0,   0,   v00, v01, v02], 
+        #               [v10, v11, v12, 0,   0,   0,   0,   0,   0  ], 
+        #               [0,   0,   0,   v10, v11, v12, 0,   0,   0  ], 
+        #               [0,   0,   0,   0,   0,   0,   v10, v11, v12],
+        #               [p0,  p1,  p2,  0,   0,   0,   0,   0,   0  ], 
+        #               [0,   0,   0,   p0,  p1,  p2,  0,   0,   0  ], 
+        #               [0,   0,   0,   0,   0,   0,   p0,  p1,  p2 ]])
+
+        # b = np.array([[0], 
+        #               [gripper_half_width],
+        #               [0],
+        #               [0],
+        #               [-gripper_half_width],         
+        #               [0],
+        #               [0],
+        #               [0],
+        #               [-finger_length]])
+ 
+ 
+        # x = np.linalg.solve(A, b)
+
+        # rot_mat = x.reshape((3,3))
+        # print(rot_mat)
+        # print(np.linalg.det(rot_mat))
+
+        ## Method 2: saying z = approach dire ; y = axis between the two contacts ; x = cross product between y and z##
+
+        z = normalize(approach_direction)
+        y = normalize(grasp_vertices[0] - grasp_vertices[1])
+        x = np.cross(y, z)
+
+        rot_mat = np.array([x, y, z]).T
+        print(np.linalg.det(rot_mat))
+
+        # so rot_map transforms a vector from the gripper frame to the object frame
+
+        rigid_trans = RigidTransform(rot_mat, midpoint, to_frame='right_gripper', from_frame=obj_name) #not sure of names of frames here
+
+        print('midpoint', midpoint)
+
+        return rigid_trans
+
 
     def sample_grasps(self, vertices, normals):
         """
@@ -128,7 +194,7 @@ class GraspingPolicy():
                 # pick two random points
                 idx1 = random.randint(0, len(vertices)-1)
                 idx2 = random.randint(0, len(vertices)-1)
-                
+
                 if idx1 == idx2:
                     continue
 
@@ -137,7 +203,8 @@ class GraspingPolicy():
                 if distance > MAX_HAND_DISTANCE or distance < MIN_HAND_DISTANCE:
                     continue
                 # checking if too close to ground
-                if vertices[idx1][2] < 0.001 or vertices[idx2][2] < 0.001:
+                if vertices[idx1][2] < 0.0 or vertices[idx2][2] < 0.0: #has to be changed when we apply the transform to the mesh
+                # if vertices[idx1][2] < 0.03 or vertices[idx2][2] < 0.03:
                     continue
 
                 # at this point it means we have a valid pair of points
@@ -182,10 +249,10 @@ class GraspingPolicy():
         else:
             for i in range(grasp_vertices.shape[0]):
                 grasp_qualities.append(compute_custom_metric(grasp_vertices[i], grasp_normals[i], self.n_facets, CONTACT_MU, CONTACT_GAMMA, object_mass))
-        
+
         return grasp_qualities
 
-    def vis(self, mesh, grasp_vertices, grasp_qualities):
+    def vis(self, mesh, grasp_vertices, grasp_qualities, grasp_normals):
         """
         Pass in any grasp and its associated grasp quality.  this function will plot
         each grasp on the object and plot the grasps as a bar between the points, with
@@ -207,13 +274,95 @@ class GraspingPolicy():
 
         midpoints = (grasp_vertices[:,0] + grasp_vertices[:,1]) / 2
         grasp_endpoints = np.zeros(grasp_vertices.shape)
-        grasp_vertices[:,0] = midpoints + dirs*MAX_HAND_DISTANCE/2
-        grasp_vertices[:,1] = midpoints - dirs*MAX_HAND_DISTANCE/2
+        grasp_endpoints[:,0] = midpoints + dirs*MAX_HAND_DISTANCE/2
+        grasp_endpoints[:,1] = midpoints - dirs*MAX_HAND_DISTANCE/2
 
-        for grasp, quality in zip(grasp_vertices, grasp_qualities):
+        n0 = np.zeros(grasp_endpoints.shape)
+        n1 = np.zeros(grasp_endpoints.shape)
+
+        normal_scale = 0.01
+        n0[:, 0] = grasp_vertices[:, 0]
+        n0[:, 1] = grasp_vertices[:, 0] + normal_scale * grasp_normals[:, 0]
+        n1[:, 0] = grasp_vertices[:, 1]
+        n1[:, 1] = grasp_vertices[:, 1] + normal_scale * grasp_normals[:, 1]
+
+        for grasp, quality, normal0, normal1 in zip(grasp_endpoints, grasp_qualities, n0, n1):
             color = [min(1, 2*(1-quality)), min(1, 2*quality), 0, 1]
             vis3d.plot3d(grasp, color=color, tube_radius=.001)
+            vis3d.plot3d(normal0, color=(0, 0, 0), tube_radius=.002)
+            vis3d.plot3d(normal1, color=(0, 0, 0), tube_radius=.002)
         vis3d.show()
+
+    def compute_approach_direction(self, mesh, grasp_vertices, grasp_quality, grasp_normals):
+
+        ## initalizing stuff ##
+        visualize = True
+        nb_directions_to_test = 6
+        finger_length = 0.06
+        normal_scale = 0.01
+        plane_normal = normalize(grasp_vertices[0] - grasp_vertices[1])
+    
+        midpoint = (grasp_vertices[0] + grasp_vertices[1]) / 2
+
+        ## generating a certain number of approach directions ##
+        theta = np.pi / nb_directions_to_test
+        rot_mat = rotation_3d(-plane_normal, theta)
+
+        horizontal_direction = np.cross(plane_normal, np.array([0, 0, 1]))
+        directions_to_test = [horizontal_direction] #these are vectors
+        approach_directions = [np.array([midpoint, midpoint + horizontal_direction * normal_scale])] #these are two points for visualization
+
+        for i in range(nb_directions_to_test-1):
+            directions_to_test.append(np.matmul(rot_mat, directions_to_test[-1]))
+            approach_directions.append(np.array([midpoint, midpoint + directions_to_test[-1] * normal_scale]) )
+
+        ## computing the palm position for each approach direction ##
+        palm_positions = []
+        for i in range(nb_directions_to_test):
+            palm_positions.append(midpoint + finger_length * directions_to_test[i])
+
+
+        if visualize:
+            ## plotting the whole mesh ##
+            vis3d.mesh(mesh, style='wireframe')
+
+            ## computing and plotting midpoint and gripper position ##
+            dirs = (grasp_vertices[0] - grasp_vertices[1]) / np.linalg.norm(grasp_vertices[0] - grasp_vertices[1])
+            grasp_endpoints = np.zeros(grasp_vertices.shape)
+            grasp_endpoints[0] = midpoint + dirs*MAX_HAND_DISTANCE/2
+            grasp_endpoints[1] = midpoint - dirs*MAX_HAND_DISTANCE/2
+
+            color = [min(1, 2*(1-grasp_quality)), min(1, 2*grasp_quality), 0, 1]
+            vis3d.plot3d(grasp_endpoints, color=color, tube_radius=.001)
+            vis3d.points(midpoint, scale=0.003)
+
+            ## computing and plotting normals at contact points ##
+            n0 = np.zeros(grasp_endpoints.shape)
+            n1 = np.zeros(grasp_endpoints.shape)
+            n0[0] = grasp_vertices[0]
+            n0[1] = grasp_vertices[0] + normal_scale * grasp_normals[0]
+            n1[0] = grasp_vertices[1]
+            n1[1] = grasp_vertices[1] + normal_scale * grasp_normals[1]
+            vis3d.plot3d(n0, color=(0, 0, 0), tube_radius=.002)
+            vis3d.plot3d(n1, color=(0, 0, 0), tube_radius=.002)
+
+            ## plotting normals the palm positions for each potential approach direction ##
+            for i in range(nb_directions_to_test):
+                vis3d.points(palm_positions[i], scale=0.003)
+
+            vis3d.show()
+
+
+
+        ## checking if some approach direction is valid ##
+        for i in range(nb_directions_to_test):
+            if len(trimesh.intersections.mesh_plane(mesh, directions_to_test[i], palm_positions[i])) == 0:
+                # it means the palm won't bump with part
+                return directions_to_test[i]
+        
+        # it means all approach directions will bump with part 
+        return -1
+
 
     def top_n_actions(self, mesh, obj_name, vis=True):
         """
@@ -243,27 +392,32 @@ class GraspingPolicy():
         # Some objects have vertices in odd places, so you should sample evenly across
         # the mesh to get nicer candidate grasp points using trimesh.sample.sample_surface_even()
 
-        ## computing vertices ##
+        ## old stuff ##
         # vertices, ids = trimesh.sample.sample_surface(mesh, self.n_vert)
         # vertices, ids = trimesh.sample.sample_surface_even(mesh, self.n_vert)
+        # convex_hull = trimesh.convex.convex_hull(mesh)
+        # intersection = trimesh.boolean.intersection([mesh, convex_hull], engine='scad')
 
-        # convex_hull = trimesh.convex.convex_hull(mesh) 
-        # intersection = trimesh.boolean.intersection([mesh, convex_hull], engine='scad') 
-
-
+        ## computing vertices ##
+        print('SAMPLING VERTICES')
         vertices, ids = trimesh.sample.sample_surface_even(mesh, self.n_vert)
-        normals = mesh.face_normals[ids]
+        normals = mesh.face_normals[ids] #face or vertex ????
+        normals = -1 * normals
 
         ## sampling some grasps ##
+        print('SAMPLING GRASPS')
+
         grasp_vertices, grasp_normals = self.sample_grasps(vertices, normals)
         object_mass = OBJECT_MASS[obj_name]
 
+
         ## computing grasp qualities and finding the n best ##
+        print('COMPUTING GRASP QUALITIES')
         grasp_qualities = self.score_grasps(grasp_vertices, grasp_normals, object_mass)
-        
+
         ## visualizing all grasps ##
-        self.vis(mesh, grasp_vertices, np.array(grasp_qualities))
-        
+        # self.vis(mesh, grasp_vertices, np.array(grasp_qualities), np.array(grasp_normals))
+
         ## keeping only the best n_execute ##
         grasp_vertices = list(grasp_vertices)
         grasp_normals = list(grasp_normals)
@@ -271,7 +425,7 @@ class GraspingPolicy():
         best_grasp_normals = []
         best_grasp_qualities = []
         nbr_best_found = 0
-        
+
         while nbr_best_found < self.n_execute:
             idx_max = np.argmax(grasp_qualities)
             best_grasp_vertices.append(grasp_vertices[idx_max])
@@ -280,15 +434,30 @@ class GraspingPolicy():
             grasp_vertices.pop(idx_max)
             grasp_normals.pop(idx_max)
             grasp_qualities.pop(idx_max)
-            nbr_best_found += 1 
+            nbr_best_found += 1
 
-        self.vis(mesh, np.array(best_grasp_vertices), np.array(best_grasp_qualities))
+        best_grasp_vertices = np.array(best_grasp_vertices)
+        best_grasp_qualities = np.array(best_grasp_qualities)
+        best_grasp_normals = np.array(best_grasp_normals)
+
+        ## visualizing the best grasps ##
+        self.vis(mesh, best_grasp_vertices, best_grasp_qualities, best_grasp_normals)
 
 
         ## generating the hand poses ##
-        # approach_direction = ?? Maybe something orthogonal to the line between the two points
-        # and in what frame is it??
-        # they talk about it on Piazza but not clear
-        hand_poses = self.vertices_to_baxter_hand_pose(grasp_vertices, approach_direction)
+        print('GENERATING HAND POSES')
+        hand_poses = []
+
+        for i in range(self.n_execute):
+            approach_dir = self.compute_approach_direction(mesh, best_grasp_vertices[i], best_grasp_qualities[i], best_grasp_normals[i])
+            # WARNING: maybe we should take the opposite of approach_dir -> need to visualize it to make sure
+            approach_dir = - approach_dir
+
+            if type(approach_dir) == int:
+                # it means the palm will bump in the part no matter from where it arrives
+                print('grasp not doable')
+                raise Exception
+            
+            hand_poses.append(self.vertices_to_baxter_hand_pose(best_grasp_vertices[i], approach_dir, obj_name))
 
         return hand_poses

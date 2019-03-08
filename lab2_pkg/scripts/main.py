@@ -16,16 +16,17 @@ import trimesh
 import warnings
 warnings.simplefilter("ignore", DeprecationWarning)
 
-import rospy
 
 
 # 106B lab imports
 from lab2.policies import GraspingPolicy
 try:
+    import rospy
     import tf
     from baxter_interface import gripper as baxter_gripper
     from path_planner import PathPlanner
     ros_enabled = True
+    from geometry_msgs.msg import PoseStamped
 except:
     print 'Couldn\'t import ROS.  I assume you\'re running this on your laptop'
     ros_enabled = False
@@ -69,7 +70,7 @@ def lookup_transform(to_frame, from_frame='base'):
     rot = RigidTransform.rotation_from_quaternion(tag_rot)
     return RigidTransform(rot, tag_pos, to_frame=from_frame, from_frame=to_frame)
 
-def execute_grasp(T_grasp_world, planner, gripper):
+def execute_grasp(T_grasp_world, planner, gripper, T_obj_world):
     """
     takes in the desired hand position relative to the object, finds the desired 
     hand position in world coordinates.  Then moves the gripper from its starting 
@@ -81,6 +82,9 @@ def execute_grasp(T_grasp_world, planner, gripper):
     T_grasp_world : :obj:`autolab_core.RigidTransform`
         desired position of gripper relative to the world frame
     """
+
+
+
     def close_gripper():
         """closes the gripper"""
         gripper.close(block=True)
@@ -94,6 +98,60 @@ def execute_grasp(T_grasp_world, planner, gripper):
     inp = raw_input('Press <Enter> to move, or \'exit\' to exit')
     if inp == "exit":
         return
+
+    ## opening gripper ##
+    open_gripper()
+
+    ## computing desired pose of gripper in world frame ##
+    print(T_grasp_world) #this one is probably wrong
+    print(T_obj_world) #this one is good (verified manually)
+    g_T_grasp_world = np.array([[T_grasp_world.rotation[0,0], T_grasp_world.rotation[0,1], T_grasp_world.rotation[0,2], T_grasp_world.translation[0]], 
+                                [T_grasp_world.rotation[1,0], T_grasp_world.rotation[1,1], T_grasp_world.rotation[1,2], T_grasp_world.translation[1]],
+                                [T_grasp_world.rotation[2,0], T_grasp_world.rotation[2,1], T_grasp_world.rotation[2,2], T_grasp_world.translation[2]],
+                                [0, 0, 0, 1]])
+
+    g_T_obj_world = np.array([[T_obj_world.rotation[0,0], T_obj_world.rotation[0,1], T_obj_world.rotation[0,2], T_obj_world.translation[0]], 
+                              [T_obj_world.rotation[1,0], T_obj_world.rotation[1,1], T_obj_world.rotation[1,2], T_obj_world.translation[1]],
+                              [T_obj_world.rotation[2,0], T_obj_world.rotation[2,1], T_obj_world.rotation[2,2], T_obj_world.translation[2]],
+                              [0, 0, 0, 1]])
+
+    rigid_transfo_gripper_in_base = np.matmul(g_T_grasp_world, g_T_obj_world)
+    p = rigid_transfo_gripper_in_base[0:-1,3]
+    print('desired position of gripper in world frame: ', p)
+
+    ## generating the PoseStamped (should stop a bit before the part) ##
+    pose_stamped = PoseStamped()
+    # todo
+
+    ## creating the plan ##
+
+
+    ## executing the plan ##
+
+
+    ## generating the PoseStamped (the one that goes to the part) ##
+    pose_stamped = PoseStamped()
+    # todo
+
+    ## creating the plan ##
+
+
+    ## executing the plan ##
+
+
+    ## closing gripper ##
+    close_gripper()
+
+    ## generating the PoseStamped (the one that lifts the part) ##
+    pose_stamped = PoseStamped()
+    # todo
+
+    ## creating the plan ##
+
+
+    ## executing the plan ##
+
+
     raise NotImplementedError
 
 def parse_args():
@@ -122,8 +180,8 @@ def parse_args():
         """Which grasp metric in grasp_metrics.py to use.  
         Options: compute_force_closure, compute_gravity_resistance, compute_custom_metric"""
     )
-    parser.add_argument('-arm', '-a', type=str, default='left', help=
-        'Options: left, right.  Default: left'
+    parser.add_argument('-arm', '-a', type=str, default='right', help=
+        'Options: left, right.  Default: right'
     )
     parser.add_argument('--baxter', action='store_true', help=
         """If you don\'t use this flag, you will only visualize the grasps.  This is 
@@ -142,11 +200,18 @@ if __name__ == '__main__':
 
     print('starting main')
     rospy.init_node('main_node')
+
+
+    toto = lookup_transform('right_gripper')
+    print(toto)
+
     # Mesh loading and pre-processing
     mesh = trimesh.load_mesh('objects/{}.obj'.format(args.obj))
-    # T_obj_world = lookup_transform(args.obj)
+    T_obj_world = lookup_transform(args.obj)
+    print(T_obj_world)
     # mesh.apply_transform(T_obj_world.matrix)
     mesh.fix_normals()
+
 
     # This policy takes a mesh and returns the best actions to execute on the robot
     grasping_policy = GraspingPolicy(
@@ -158,15 +223,20 @@ if __name__ == '__main__':
     )
     # Each grasp is represented by T_grasp_world, a RigidTransform defining the 
     # position of the end effector
-    T_grasp_worlds = grasping_policy.top_n_actions(mesh, args.obj)
 
     # Execute each grasp on the baxter / sawyer
     if args.baxter:
         gripper = baxter_gripper.Gripper(args.arm)
-        planner = PathPlanner('{}_arm'.format(arm))
+        planner = PathPlanner('{}_arm'.format(args.arm))
+
+        T_grasp_worlds = grasping_policy.top_n_actions(mesh, args.obj)
+        # WARNING: they are probably wrong
+        # What would be great is to visualize them in the GUI
 
         for T_grasp_world in T_grasp_worlds:
             repeat = True
             while repeat:
-                execute_grasp(T_grasp_world, planner, gripper)
+                execute_grasp(T_grasp_world, planner, gripper, T_obj_world)
                 repeat = raw_input("repeat? [y|n] ") == 'y'
+    else:
+        T_grasp_worlds = grasping_policy.top_n_actions(mesh, args.obj)
