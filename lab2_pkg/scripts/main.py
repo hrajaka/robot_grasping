@@ -209,7 +209,7 @@ if __name__ == '__main__':
     # T_obj_world = lookup_transform(args.obj)
     # print(T_obj_world)
 
-    
+
     # mesh.apply_transform(T_obj_world.matrix)
     mesh.fix_normals()
 
@@ -223,11 +223,13 @@ if __name__ == '__main__':
         args.metric
     )
 
+    '''
     G_rot = np.eye(3)
     G_trans = np.array([0.02, 0, 0])
     G = RigidTransform(G_rot, G_trans, 'object', 'gripper')
 
     grasping_policy.vis_transform(mesh, G)
+    '''
 
     # Each grasp is represented by T_grasp_world, a RigidTransform defining the 
     # position of the end effector
@@ -248,3 +250,4 @@ if __name__ == '__main__':
                 repeat = raw_input("repeat? [y|n] ") == 'y'
     else:
         T_grasp_worlds = grasping_policy.top_n_actions(mesh, args.obj)
+

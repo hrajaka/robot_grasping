@@ -244,7 +244,7 @@ class GraspingPolicy():
             vis3d.plot3d(normal1, color=(0, 0, 0), tube_radius=.002)
         vis3d.show()
 
-    def vis_transform(self, mesh, G_transform):
+    def vis_transform(self, mesh, G_transform, vertices):
         """
         Pass in any grasp and its associated grasp quality.  this function will plot
         each grasp on the object and plot the grasps as a bar between the points, with
@@ -317,6 +317,9 @@ class GraspingPolicy():
         vis3d.plot3d(x_axis_t, color=(255,0,0), tube_radius=0.001)
         vis3d.plot3d(y_axis_t, color=(0,255,0), tube_radius=0.001)
         vis3d.plot3d(z_axis_t, color=(0,0,255), tube_radius=0.001)
+
+        vis3d.points(vertices[0], scale=0.003)
+        vis3d.points(vertices[1], scale=0.003)
 
         vis3d.show()
 
@@ -487,5 +490,6 @@ class GraspingPolicy():
                 raise Exception
             
             hand_poses.append(self.vertices_to_baxter_hand_pose(best_grasp_vertices[i], approach_dir, obj_name))
+            self.vis_transform(mesh, hand_poses[-1], best_grasp_vertices[i])
 
         return hand_poses
