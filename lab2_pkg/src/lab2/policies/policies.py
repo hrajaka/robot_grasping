@@ -276,7 +276,7 @@ class GraspingPolicy():
                          [0, -1,  0,    0],
                          [0,  0,  0,    1]])
 
-        # transform from gripper to contact 1
+        # transform from gripper to contact 2
         G_gc2 = np.array([[1,  0,  0,    0],
                          [0,  0, -1,    L],
                          [0,  1,  0,    0],
@@ -415,7 +415,8 @@ class GraspingPolicy():
 
             vis3d.show()
 
-
+        directions_to_test = [directions_to_test[3], directions_to_test[2], directions_to_test[4], directions_to_test[1], directions_to_test[5], directions_to_test[0]]
+        palm_positions = [palm_positions[3], palm_positions[2], palm_positions[4], palm_positions[1], palm_positions[5], palm_positions[0]]
 
         ## checking if some approach direction is valid ##
         for i in range(nb_directions_to_test):
@@ -525,3 +526,4 @@ class GraspingPolicy():
             self.vis_transform(mesh, hand_poses[-1], best_grasp_vertices[i])
 
         return hand_poses
+    

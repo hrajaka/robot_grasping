@@ -1,6 +1,5 @@
-#!/home/cc/ee106b/sp19/class/ee106b-aai/virtualenvironment/my_new_app/bin/python
-
-# #!/home/cc/ee106b/sp19/class/ee106b-abj/python-virtual-environments/env/bin/python
+#!/home/cc/ee106b/sp19/class/ee106b-abj/python-virtual-environments/env/bin/python
+# #!/home/cc/ee106b/sp19/class/ee106b-aai/virtualenvironment/my_new_app/bin/python
 
 """
 Starter script for EE106B grasp planning lab
@@ -30,6 +29,25 @@ try:
 except:
     print 'Couldn\'t import ROS.  I assume you\'re running this on your laptop'
     ros_enabled = False
+
+def RigidTransformToPoseStamped(G):
+        pose = PoseStamped()
+        pose.header.stamp = rospy.Time.now()
+        pose.header.frame_id = "gripper_pose"
+
+        translation = G.translation
+
+        pose.pose.position.x = translation[0]
+        pose.pose.position.y = translation[1]
+        pose.pose.position.z = translation[2]
+
+        quaternion = G.quaternion
+        pose.pose.orientation.w = quaternion[0]
+        pose.pose.orientation.x = quaternion[1]
+        pose.pose.orientation.y = quaternion[2]
+        pose.pose.orientation.z = quaternion[3]
+
+        return pose 
 
 def lookup_transform(to_frame, from_frame='base'):
     """
@@ -67,10 +85,11 @@ def lookup_transform(to_frame, from_frame='base'):
             print(e)
             rate.sleep()
         attempts += 1
+    tag_rot = np.array([tag_rot[3], tag_rot[0], tag_rot[1], tag_rot[2]])
     rot = RigidTransform.rotation_from_quaternion(tag_rot)
-    return RigidTransform(rot, tag_pos, to_frame=from_frame, from_frame=to_frame)
+    return RigidTransform(rot, tag_pos, to_frame=to_frame, from_frame=from_frame)
 
-def execute_grasp(T_grasp_world, planner, gripper, T_obj_world):
+def execute_grasp(T_world_grasp, planner, gripper):
     """
     takes in the desired hand position relative to the object, finds the desired 
     hand position in world coordinates.  Then moves the gripper from its starting 
@@ -100,12 +119,12 @@ def execute_grasp(T_grasp_world, planner, gripper, T_obj_world):
         return
 
     ## opening gripper ##
+    print('----------OPENING GRIPPER----------')
     open_gripper()
 
     ## computing desired pose of gripper in world frame ##
-    print(T_grasp_world) #this one is probably wrong
-    print(T_obj_world) #this one is good (verified manually)
-
+    
+    '''
     g_T_grasp_world = np.array([[T_grasp_world.rotation[0,0], T_grasp_world.rotation[0,1], T_grasp_world.rotation[0,2], T_grasp_world.translation[0]], 
                                 [T_grasp_world.rotation[1,0], T_grasp_world.rotation[1,1], T_grasp_world.rotation[1,2], T_grasp_world.translation[1]],
                                 [T_grasp_world.rotation[2,0], T_grasp_world.rotation[2,1], T_grasp_world.rotation[2,2], T_grasp_world.translation[2]],
@@ -115,26 +134,25 @@ def execute_grasp(T_grasp_world, planner, gripper, T_obj_world):
                               [T_obj_world.rotation[1,0], T_obj_world.rotation[1,1], T_obj_world.rotation[1,2], T_obj_world.translation[1]],
                               [T_obj_world.rotation[2,0], T_obj_world.rotation[2,1], T_obj_world.rotation[2,2], T_obj_world.translation[2]],
                               [0, 0, 0, 1]])
-
-    rigid_transfo_gripper_in_base = np.matmul(g_T_grasp_world, g_T_obj_world)
-    p = rigid_transfo_gripper_in_base[:-1,3]
-    print('desired position of gripper in world frame: ', p)
+    '''
+    #rigid_transfo_gripper_in_base = np.matmul(g_T_grasp_world, g_T_obj_world)
+    #p = rigid_transfo_gripper_in_base[:-1,3]
+    #print('desired position of gripper in world frame: ', p)
 
     ## generating the PoseStamped (should stop a bit before the part) ##
-    pose_stamped = PoseStamped()
-    # pose_stamped.pose.position.x = p[0]
-    # pose_stamped.pose.position.y = p[1]
-    # pose_stamped.pose.position.z = p[2]
+    pose_stamped = RigidTransformToPoseStamped(T_world_grasp)
 
 
     ## creating the plan ##
+    print('creating plan')
     plan = planner.plan_to_pose(pose_stamped)
 
     ## executing the plan ##
+    print('----------MOVING TO POSITION 1----------')
     planner.execute_plan(plan)
 
     ## generating the PoseStamped (the one that goes to the part) ##
-    pose_stamped = PoseStamped()
+    #pose_stamped = PoseStamped()
     # todo
 
     ## creating the plan ##
@@ -144,19 +162,22 @@ def execute_grasp(T_grasp_world, planner, gripper, T_obj_world):
 
 
     ## closing gripper ##
+    print('----------CLOSING GRIPPER----------')
     close_gripper()
 
     ## generating the PoseStamped (the one that lifts the part) ##
-    pose_stamped = PoseStamped()
+    #pose_stamped = PoseStamped()
     # todo
 
     ## creating the plan ##
 
 
     ## executing the plan ##
+    print('----------OPENING GRIPPER----------')
+    open_gripper()
 
 
-    raise NotImplementedError
+    
 
 def parse_args():
     """
@@ -208,7 +229,8 @@ if __name__ == '__main__':
 
     # Mesh loading and pre-processing
     mesh = trimesh.load_mesh('objects/{}.obj'.format(args.obj))
-
+    T_world_obj = lookup_transform(args.obj)
+    '''
     try: # try to lookup trasnsform from world to object with ar tag
         T_world_obj = lookup_transform(args.obj)
     except: # ar tag doesnt exist
@@ -217,7 +239,10 @@ if __name__ == '__main__':
                                     [0,  0, 1],
                                     [0, 1,  0]])
         T_world_obj = RigidTransform(T_world_obj_rot, T_world_obj_trans, 'world', 'obj')
+    '''
+    print('T_world_obj')
     print(T_world_obj)
+    print('')
     #mesh.apply_transform(T_world_obj.matrix)
     mesh.fix_normals()
 
@@ -249,21 +274,39 @@ if __name__ == '__main__':
 
         #T_grasp_worlds = grasping_policy.top_n_actions(mesh, args.obj)
         T_obj_grasps = grasping_policy.top_n_actions(mesh, args.obj)
-        T_world_grasps = T_obj_grasp
-        for Tog, i in enumerate(T_obj_grasps):
-            T_world_grasps[i] = T_world_obj.dot(Tog)
+        T_world_grasps = T_obj_grasps
+        for i, Tog in enumerate(T_obj_grasps):
+            #T_world_grasps[i] = T_world_obj.dot(Tog)
+            print('GRASP # {}'.format(i))
+            print('T_obj_grasp')
+            print(Tog)
+            print('')
+
+            T_world_grasps[i] = Tog.dot(T_world_obj)
+            T_wo = T_world_obj.matrix
+            T_og = Tog.matrix
+            T_wg = np.matmul(T_wo, T_og)
+
+            T_world_grasps[i] = RigidTransform(T_wg[:3, :3], T_wg[:3, 3], 'world', 'gripper')
+
+            print('T_world_grasp')
+            print(T_world_grasps[i])
+            print('')
+
         # WARNING: they are probably wrong
         # What would be great is to visualize them in the GUI
 
         for T_world_grasp in T_world_grasps:
             repeat = True
-            print('GRASP')
-            print(T_world_grasp.matrix)
-            '''
+            #print('GRASP')
+            #print(T_world_grasp.matrix)
+            #print()
+            
+            
             while repeat:
-                execute_grasp(T_word_grasp, planner, gripper, T_obj_world)
+                execute_grasp(T_world_grasp, planner, gripper)
                 repeat = raw_input("repeat? [y|n] ") == 'y'
-            '''
+            
     else:
         T_grasp_worlds = grasping_policy.top_n_actions(mesh, args.obj)
 
