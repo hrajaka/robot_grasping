@@ -62,7 +62,7 @@ if __name__ == '__main__':
     is so that you can call lookup_transform('bar_clamp', 'world'), and not have to do transformation
     matrix multiplications.  
     """
-    rospy.init_node('object_pose_publisher')
+    rospy.init_node('sim_object_pose_publisher')
 
     broadcaster = tf.TransformBroadcaster()
     listener = tf.TransformListener()
@@ -77,8 +77,8 @@ if __name__ == '__main__':
                     object_template.t_ar_obj, 
                     object_template.q_ar_obj, 
                     #listener.getLatestCommonTime('base', 'left_hand_camera'),
-                    listener.getLatestCommonTime('base', 'right_hand_camera'),
-                    #rospy.Time.now(),
+                    #listener.getLatestCommonTime('base', 'right_hand_camera'),
+                    rospy.Time.now(),
                     object_template.name, 
                     object_template.ar_marker
                 )

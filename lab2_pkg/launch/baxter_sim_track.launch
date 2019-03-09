@@ -1,0 +1,5 @@
+<launch>
+  <node name="sim_publisher" pkg="lab2_pkg" type="sim_publisher.py" respawn="false" output="screen" />
+  <node name="sim_object_pose_publisher" pkg="lab2_pkg" type="sim_object_pose_publisher.py" respawn="false" output="screen" />
+
+</launch>
