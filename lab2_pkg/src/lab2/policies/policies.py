@@ -100,7 +100,7 @@ class GraspingPolicy():
         rot_mat = rot_mat_opposite.T
         p = - np.matmul(rot_mat_opposite.T, p_opposite)
 
-        rigid_trans = RigidTransform(rot_mat, p, to_frame='right_gripper', from_frame=obj_name) 
+        rigid_trans = RigidTransform(rot_mat_opposite, p_opposite, to_frame='right_gripper', from_frame=obj_name) 
 
         return rigid_trans
 
@@ -260,10 +260,26 @@ class GraspingPolicy():
         grasp_qualities : mx' :obj:`numpy.ndarray`
             vector of grasp qualities for each grasp
         """
+        L = 0.06 # gripper half width
+
+        # transform from gripper to contact 1
+        G_gc1 = np.array([[1,  0,  0,    0],
+                         [0,  0,  1, -1*L],
+                         [0, -1,  0,    0],
+                         [0,  0,  0,    1]])
+
+        # transform from gripper to contact 1
+        G_gc2 = np.array([[1,  0,  0,    0],
+                         [0,  0, -1,    L],
+                         [0,  1,  0,    0],
+                         [0,  0,  0,    1]])
 
         G = G_transform.matrix
         print('G')
         print(G)
+
+        G_oc1 = np.matmul(G, G_gc1)
+        G_oc2 = np.matmul(G, G_gc2)
 
         scale = 0.01
         o = np.array([0, 0, 0, 1])
@@ -276,29 +292,19 @@ class GraspingPolicy():
         yt = np.matmul(G, y)
         zt = np.matmul(G, z)
 
+        o1 = np.matmul(G_oc1, o)
+        x1 = np.matmul(G_oc1, x)
+        y1 = np.matmul(G_oc1, y)
+        z1 = np.matmul(G_oc1, z)
+
+        o2 = np.matmul(G_oc2, o)
+        x2 = np.matmul(G_oc2, x)
+        y2 = np.matmul(G_oc2, y)
+        z2 = np.matmul(G_oc2, z)
+
         vis3d.mesh(mesh, style='wireframe')
 
-        #dirs = normalize(grasp_vertices[:,0] - grasp_vertices[:,1], axis=1)
-
-        #midpoints = (grasp_vertices[:,0] + grasp_vertices[:,1]) / 2
-        #grasp_endpoints = np.zeros(grasp_vertices.shape)
-        #grasp_endpoints[:,0] = midpoints + dirs*MAX_HAND_DISTANCE/2
-        #grasp_endpoints[:,1] = midpoints - dirs*MAX_HAND_DISTANCE/2
-
-        #n0 = np.zeros(grasp_endpoints.shape)
-        #n1 = np.zeros(grasp_endpoints.shape)
-
-        #normal_scale = 0.01
-        #n0[:, 0] = grasp_vertices[:, 0]
-        #n0[:, 1] = grasp_vertices[:, 0] + normal_scale * grasp_normals[:, 0]
-        #n1[:, 0] = grasp_vertices[:, 1]
-        #n1[:, 1] = grasp_vertices[:, 1] + normal_scale * grasp_normals[:, 1]
-
-        #for grasp, quality, normal0, normal1 in zip(grasp_endpoints, grasp_qualities, n0, n1):
-        #    color = [min(1, 2*(1-quality)), min(1, 2*quality), 0, 1]
-        #    vis3d.plot3d(grasp, color=color, tube_radius=.001)
-        #    vis3d.plot3d(normal0, color=(0, 0, 0), tube_radius=.002)
-        #    vis3d.plot3d(normal1, color=(0, 0, 0), tube_radius=.002)
+        
         
         #Plot origin axes
         x_axis = np.array([o, x])[:, :3]
@@ -309,6 +315,14 @@ class GraspingPolicy():
         y_axis_t = np.array([ot, yt])[:, :3]
         z_axis_t = np.array([ot, zt])[:, :3]
 
+        x_axis_1 = np.array([o1, x1])[:, :3]
+        y_axis_1 = np.array([o1, y1])[:, :3]
+        z_axis_1 = np.array([o1, z1])[:, :3]
+
+        x_axis_2 = np.array([o2, x2])[:, :3]
+        y_axis_2 = np.array([o2, y2])[:, :3]
+        z_axis_2 = np.array([o2, z2])[:, :3]
+
 
         vis3d.plot3d(x_axis, color=(0.5,0,0), tube_radius=0.001)
         vis3d.plot3d(y_axis, color=(0,0.5,0), tube_radius=0.001)
@@ -317,6 +331,14 @@ class GraspingPolicy():
         vis3d.plot3d(x_axis_t, color=(255,0,0), tube_radius=0.001)
         vis3d.plot3d(y_axis_t, color=(0,255,0), tube_radius=0.001)
         vis3d.plot3d(z_axis_t, color=(0,0,255), tube_radius=0.001)
+
+        vis3d.plot3d(x_axis_1, color=(255,0,0), tube_radius=0.001)
+        vis3d.plot3d(y_axis_1, color=(0,255,0), tube_radius=0.001)
+        vis3d.plot3d(z_axis_1, color=(0,0,255), tube_radius=0.001)
+
+        vis3d.plot3d(x_axis_2, color=(255,0,0), tube_radius=0.001)
+        vis3d.plot3d(y_axis_2, color=(0,255,0), tube_radius=0.001)
+        vis3d.plot3d(z_axis_2, color=(0,0,255), tube_radius=0.001)
 
         vis3d.points(vertices[0], scale=0.003)
         vis3d.points(vertices[1], scale=0.003)
