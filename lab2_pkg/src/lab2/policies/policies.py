@@ -138,6 +138,8 @@ class GraspingPolicy():
         grasp_vertices = []
         grasp_normals = []
         nbr_grasps_found = 0
+        z_table = min(vertices[:, 2]) #not exactly true but close
+        print('z_table', z_table)
 
         for i in range(self.n_grasps):
             hasFoundValidGrasp = False
@@ -154,8 +156,8 @@ class GraspingPolicy():
                 if distance > MAX_HAND_DISTANCE or distance < MIN_HAND_DISTANCE:
                     continue
                 # checking if too close to ground
-                if vertices[idx1][2] < 0.0 or vertices[idx2][2] < 0.0: #has to be changed when we apply the transform to the mesh
-                # if vertices[idx1][2] < 0.03 or vertices[idx2][2] < 0.03:
+                # if vertices[idx1][2] < 0.0 or vertices[idx2][2] < 0.0: #has to be changed when we apply the transform to the mesh
+                if vertices[idx1][2] < z_table + 0.06 or vertices[idx2][2] < z_table + 0.06:
                     continue
 
                 # at this point it means we have a valid pair of points
@@ -221,6 +223,12 @@ class GraspingPolicy():
         """
         vis3d.mesh(mesh)
 
+        middle_of_part = np.mean(np.mean(grasp_vertices, axis=1), axis=0)
+        print(middle_of_part)
+        vis3d.points(middle_of_part, scale=0.003)
+
+
+
         dirs = normalize(grasp_vertices[:,0] - grasp_vertices[:,1], axis=1)
 
         midpoints = (grasp_vertices[:,0] + grasp_vertices[:,1]) / 2
@@ -275,11 +283,13 @@ class GraspingPolicy():
                          [0,  0,  0,    1]])
 
         G = G_transform.matrix
+
         print('G')
         print(G)
 
         G_oc1 = np.matmul(G, G_gc1)
         G_oc2 = np.matmul(G, G_gc2)
+
 
         scale = 0.01
         o = np.array([0, 0, 0, 1])
@@ -291,6 +301,7 @@ class GraspingPolicy():
         xt = np.matmul(G, x)
         yt = np.matmul(G, y)
         zt = np.matmul(G, z)
+
 
         o1 = np.matmul(G_oc1, o)
         x1 = np.matmul(G_oc1, x)
@@ -304,7 +315,7 @@ class GraspingPolicy():
 
         vis3d.mesh(mesh, style='wireframe')
 
-        
+
         
         #Plot origin axes
         x_axis = np.array([o, x])[:, :3]
@@ -372,7 +383,6 @@ class GraspingPolicy():
         palm_positions = []
         for i in range(nb_directions_to_test):
             palm_positions.append(midpoint + finger_length * directions_to_test[i])
-            print('len', np.linalg.norm(finger_length * directions_to_test[i]))
 
 
         if visualize:
@@ -469,7 +479,7 @@ class GraspingPolicy():
         grasp_qualities = self.score_grasps(grasp_vertices, grasp_normals, object_mass)
 
         ## visualizing all grasps ##
-        # self.vis(mesh, grasp_vertices, np.array(grasp_qualities), np.array(grasp_normals))
+        self.vis(mesh, grasp_vertices, np.array(grasp_qualities), np.array(grasp_normals))
 
         ## keeping only the best n_execute ##
         grasp_vertices = list(grasp_vertices)
@@ -508,7 +518,7 @@ class GraspingPolicy():
 
             if type(approach_dir) == int:
                 # it means the palm will bump in the part no matter from where it arrives
-                print('grasp not doable')
+                print('Grasp not doable')
                 raise Exception
             
             hand_poses.append(self.vertices_to_baxter_hand_pose(best_grasp_vertices[i], approach_dir, obj_name))
