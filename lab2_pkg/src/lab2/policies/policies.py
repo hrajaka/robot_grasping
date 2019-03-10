@@ -359,7 +359,7 @@ class GraspingPolicy():
     def compute_approach_direction(self, mesh, grasp_vertices, grasp_quality, grasp_normals):
 
         ## initalizing stuff ##
-        visualize = True
+        visualize = False
         nb_directions_to_test = 6
         finger_length = 0.06
         normal_scale = 0.01
@@ -480,7 +480,7 @@ class GraspingPolicy():
         grasp_qualities = self.score_grasps(grasp_vertices, grasp_normals, object_mass)
 
         ## visualizing all grasps ##
-        self.vis(mesh, grasp_vertices, np.array(grasp_qualities), np.array(grasp_normals))
+        # self.vis(mesh, grasp_vertices, np.array(grasp_qualities), np.array(grasp_normals))
 
         ## keeping only the best n_execute ##
         grasp_vertices = list(grasp_vertices)
@@ -505,7 +505,7 @@ class GraspingPolicy():
         best_grasp_normals = np.array(best_grasp_normals)
 
         ## visualizing the best grasps ##
-        self.vis(mesh, best_grasp_vertices, best_grasp_qualities, best_grasp_normals)
+        # self.vis(mesh, best_grasp_vertices, best_grasp_qualities, best_grasp_normals)
 
 
         ## generating the hand poses ##

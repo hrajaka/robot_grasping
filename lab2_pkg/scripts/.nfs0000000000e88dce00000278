@@ -105,6 +105,7 @@ def execute_grasp(T_grasp_world, planner, gripper, T_obj_world):
     ## computing desired pose of gripper in world frame ##
     print(T_grasp_world) #this one is probably wrong
     print(T_obj_world) #this one is good (verified manually)
+
     g_T_grasp_world = np.array([[T_grasp_world.rotation[0,0], T_grasp_world.rotation[0,1], T_grasp_world.rotation[0,2], T_grasp_world.translation[0]], 
                                 [T_grasp_world.rotation[1,0], T_grasp_world.rotation[1,1], T_grasp_world.rotation[1,2], T_grasp_world.translation[1]],
                                 [T_grasp_world.rotation[2,0], T_grasp_world.rotation[2,1], T_grasp_world.rotation[2,2], T_grasp_world.translation[2]],
@@ -116,18 +117,21 @@ def execute_grasp(T_grasp_world, planner, gripper, T_obj_world):
                               [0, 0, 0, 1]])
 
     rigid_transfo_gripper_in_base = np.matmul(g_T_grasp_world, g_T_obj_world)
-    p = rigid_transfo_gripper_in_base[0:-1,3]
+    p = rigid_transfo_gripper_in_base[:-1,3]
     print('desired position of gripper in world frame: ', p)
 
     ## generating the PoseStamped (should stop a bit before the part) ##
     pose_stamped = PoseStamped()
-    # todo
+    # pose_stamped.pose.position.x = p[0]
+    # pose_stamped.pose.position.y = p[1]
+    # pose_stamped.pose.position.z = p[2]
+
 
     ## creating the plan ##
-
+    plan = planner.plan_to_pose(pose_stamped)
 
     ## executing the plan ##
-
+    planner.execute_plan(plan)
 
     ## generating the PoseStamped (the one that goes to the part) ##
     pose_stamped = PoseStamped()
@@ -204,9 +208,17 @@ if __name__ == '__main__':
 
     # Mesh loading and pre-processing
     mesh = trimesh.load_mesh('objects/{}.obj'.format(args.obj))
-    # T_obj_world = lookup_transform(args.obj)
-    # print(T_obj_world)
-    # mesh.apply_transform(T_obj_world.matrix) #think about what this does
+
+    try: # try to lookup trasnsform from world to object with ar tag
+        T_world_obj = lookup_transform(args.obj)
+    except: # ar tag doesnt exist
+        T_world_obj_trans = np.array([0.59, -0.51, -0.24])
+        T_world_obj_rot = np.array([[-1, 0, 0],
+                                    [0,  0, 1],
+                                    [0, 1,  0]])
+        T_world_obj = RigidTransform(T_world_obj_rot, T_world_obj_trans, 'world', 'obj')
+    print(T_world_obj)
+    #mesh.apply_transform(T_world_obj.matrix)
     mesh.fix_normals()
 
 
@@ -218,6 +230,15 @@ if __name__ == '__main__':
         args.n_facets, 
         args.metric
     )
+
+    '''
+    G_rot = np.eye(3)
+    G_trans = np.array([0.02, 0, 0])
+    G = RigidTransform(G_rot, G_trans, 'object', 'gripper')
+
+    grasping_policy.vis_transform(mesh, G)
+    '''
+
     # Each grasp is represented by T_grasp_world, a RigidTransform defining the 
     # position of the end effector
 
@@ -226,14 +247,23 @@ if __name__ == '__main__':
         gripper = baxter_gripper.Gripper(args.arm)
         planner = PathPlanner('{}_arm'.format(args.arm))
 
-        T_grasp_worlds = grasping_policy.top_n_actions(mesh, args.obj)
+        #T_grasp_worlds = grasping_policy.top_n_actions(mesh, args.obj)
+        T_obj_grasps = grasping_policy.top_n_actions(mesh, args.obj)
+        T_world_grasps = T_obj_grasp
+        for Tog, i in enumerate(T_obj_grasps):
+            T_world_grasps[i] = T_world_obj.dot(Tog)
         # WARNING: they are probably wrong
         # What would be great is to visualize them in the GUI
 
-        for T_grasp_world in T_grasp_worlds:
+        for T_world_grasp in T_world_grasps:
             repeat = True
+            print('GRASP')
+            print(T_world_grasp.matrix)
+            '''
             while repeat:
-                execute_grasp(T_grasp_world, planner, gripper, T_obj_world)
+                execute_grasp(T_word_grasp, planner, gripper, T_obj_world)
                 repeat = raw_input("repeat? [y|n] ") == 'y'
+            '''
     else:
         T_grasp_worlds = grasping_policy.top_n_actions(mesh, args.obj)
+
