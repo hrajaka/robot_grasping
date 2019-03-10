@@ -49,11 +49,22 @@ def RigidTransformToPoseStamped(G):
         pose.pose.orientation.y = quaternion[2]
         pose.pose.orientation.z = quaternion[3]
 
-        return pose 
+        return pose
+
+def matrixToPoseStamped(mat):
+
+        rot_mat = mat[:3, :3]
+        trans = mat[:3,3]
+
+        rigid_transform = RigidTransform(rot_mat, trans, from_frame='from', to_frame='to')
+
+        pose = RigidTransformToPoseStamped(rigid_transform)
+
+        return pose
 
 def lookup_transform(to_frame, from_frame='base'):
     """
-    Returns the AR tag position in world coordinates 
+    Returns the AR tag position in world coordinates
 
     Parameters
     ----------
@@ -91,13 +102,13 @@ def lookup_transform(to_frame, from_frame='base'):
     rot = RigidTransform.rotation_from_quaternion(tag_rot)
     return RigidTransform(rot, tag_pos, to_frame=to_frame, from_frame=from_frame)
 
-def execute_grasp(T_world_grasp, planner, gripper, T_world_grasp_inter):
+def execute_grasp(T_world_grasp, planner, gripper):
     """
-    takes in the desired hand position relative to the object, finds the desired 
-    hand position in world coordinates.  Then moves the gripper from its starting 
-    orientation to some distance BEHIND the object, then move to the  hand pose 
-    in world coordinates, closes the gripper, then moves up.  
-    
+    takes in the desired hand position relative to the object, finds the desired
+    hand position in world coordinates.  Then moves the gripper from its starting
+    orientation to some distance BEHIND the object, then move to the  hand pose
+    in world coordinates, closes the gripper, then moves up.
+
     Parameters
     ----------
     T_grasp_world : :obj:`autolab_core.RigidTransform`
@@ -124,25 +135,30 @@ def execute_grasp(T_world_grasp, planner, gripper, T_world_grasp_inter):
 
     print('---------- MOVING TO INTERMEDIATE POSITION ----------')
     ## generating the PoseStamped ##
-    pose_stamped = RigidTransformToPoseStamped(T_world_grasp_inter)
+    temp_matrix = np.array([[1, 0, 0, 0],
+                            [0, 1, 0, 0],
+                            [0, 0, 1, -0.1],
+                            [0, 0, 0, 1]])
+    T1 = np.matpmul(T_world_graspr, temp_matrix))
+    pose_stamped_1 = matrixToPoseStamped(T1)
 
     ## creating the plan ##
     print('creating plan')
-    plan = planner.plan_to_pose(pose_stamped)
+    plan_1 = planner.plan_to_pose(pose_stamped_1)
 
     ## executing the plan ##
-    planner.execute_plan(plan)
+    planner.execute_plan(plan_1)
 
     print('---------- MOVING TO FINAL POSITION ----------')
     ## generating the PoseStamped ##
-    pose_stamped = RigidTransformToPoseStamped(T_world_grasp)
+    pose_stamped_2 = RigidTransformToPoseStamped(T_world_grasp)
 
     ## creating the plan ##
     print('creating plan')
-    plan = planner.plan_to_pose(pose_stamped)
+    plan_2 = planner.plan_to_pose(pose_stamped_2)
 
     ## executing the plan ##
-    planner.execute_plan(plan)
+    planner.execute_plan(plan_2)
 
     ## closing gripper ##
     print('----------CLOSING GRIPPER----------')
@@ -150,21 +166,44 @@ def execute_grasp(T_world_grasp, planner, gripper, T_world_grasp_inter):
 
     print('---------- MOVING TO UP POSITION ----------')
     ## generating the PoseStamped ##
-    pose_stamped = RigidTransformToPoseStamped(T_world_grasp)
-    pose_stamped.pose.position.z = pose_stamped.pose.position.z + 0.2
+    pose_stamped_3 = RigidTransformToPoseStamped(T_world_grasp)
+    pose_stamped_3.pose.position.z = pose_stamped_3.pose.position.z + 0.3
 
     ## creating the plan ##
     print('creating plan')
-    plan = planner.plan_to_pose(pose_stamped)
+    plan_3 = planner.plan_to_pose(pose_stamped_3)
 
     ## executing the plan ##
-    planner.execute_plan(plan)
+    planner.execute_plan(plan_3)
+
+    print('---------- MOVING TO LATERAL POSITION ----------')
+    ## generating the PoseStamped ##
+    pose_stamped_4 = RigidTransformToPoseStamped(T_world_grasp)
+    pose_stamped_4.pose.position.y = pose_stamped_4.pose.position.y + 0.1
+
+    ## creating the plan ##
+    print('creating plan')
+    plan_4 = planner.plan_to_pose(pose_stamped_4)
+
+    ## executing the plan ##
+    planner.execute_plan(plan_4)
 
     print('----------OPENING GRIPPER----------')
     open_gripper()
 
+    print('---------- MOVING TO UP POSITION NBR 2 ----------')
+    ## generating the PoseStamped ##
+    pose_stamped_5 = pose_stamped_4
+    pose_stamped_5.pose.position.z = pose_stamped_5.pose.position.z + 0.3
 
-    
+    ## creating the plan ##
+    print('creating plan')
+    plan_5 = planner.plan_to_pose(pose_stamped_5)
+
+    ## executing the plan ##
+    planner.execute_plan(plan_5)
+
+
 
 def parse_args():
     """
@@ -172,16 +211,16 @@ def parse_args():
     """
     parser = argparse.ArgumentParser()
     parser.add_argument('-obj', type=str, default='gearbox', help=
-        """Which Object you\'re trying to pick up.  Options: gearbox, nozzle, pawn.  
+        """Which Object you\'re trying to pick up.  Options: gearbox, nozzle, pawn.
         Default: gearbox"""
     )
     parser.add_argument('-n_vert', type=int, default=1000, help=
         'How many vertices you want to sample on the object surface.  Default: 1000'
     )
     parser.add_argument('-n_facets', type=int, default=32, help=
-        """You will approximate the friction cone as a set of n_facets vectors along 
-        the surface.  This way, to check if a vector is within the friction cone, all 
-        you have to do is check if that vector can be represented by a POSITIVE 
+        """You will approximate the friction cone as a set of n_facets vectors along
+        the surface.  This way, to check if a vector is within the friction cone, all
+        you have to do is check if that vector can be represented by a POSITIVE
         linear combination of the n_facets vectors.  Default: 32"""
     )
     parser.add_argument('-n_grasps', type=int, default=500, help=
@@ -189,14 +228,14 @@ def parse_args():
     parser.add_argument('-n_execute', type=int, default=5, help=
         'How many grasps you want to execute.  Default: 5')
     parser.add_argument('-metric', '-m', type=str, default='compute_force_closure', help=
-        """Which grasp metric in grasp_metrics.py to use.  
+        """Which grasp metric in grasp_metrics.py to use.
         Options: compute_force_closure, compute_gravity_resistance, compute_custom_metric"""
     )
     parser.add_argument('-arm', '-a', type=str, default='right', help=
         'Options: left, right.  Default: right'
     )
     parser.add_argument('--baxter', action='store_true', help=
-        """If you don\'t use this flag, you will only visualize the grasps.  This is 
+        """If you don\'t use this flag, you will only visualize the grasps.  This is
         so you can run this on your laptop"""
     )
     parser.add_argument('--debug', action='store_true', help=
@@ -236,10 +275,10 @@ if __name__ == '__main__':
 
     # This policy takes a mesh and returns the best actions to execute on the robot
     grasping_policy = GraspingPolicy(
-        args.n_vert, 
-        args.n_grasps, 
-        args.n_execute, 
-        args.n_facets, 
+        args.n_vert,
+        args.n_grasps,
+        args.n_execute,
+        args.n_facets,
         args.metric
     )
 
@@ -251,7 +290,7 @@ if __name__ == '__main__':
     grasping_policy.vis_transform(mesh, G)
     '''
 
-    # Each grasp is represented by T_grasp_world, a RigidTransform defining the 
+    # Each grasp is represented by T_grasp_world, a RigidTransform defining the
     # position of the end effector
 
     # Execute each grasp on the baxter / sawyer
@@ -262,7 +301,7 @@ if __name__ == '__main__':
 
         T_obj_grasps = grasping_policy.top_n_actions(mesh, args.obj)
         T_world_grasps = []
-        T_world_grasps_inter = []
+        # T_world_grasps_inter = []
 
         for i, Tog in enumerate(T_obj_grasps):
             # print('GRASP # {}'.format(i))
@@ -277,31 +316,20 @@ if __name__ == '__main__':
 
             T_world_grasps.append(RigidTransform(T_wg[:3, :3], T_wg[:3, 3], 'world', 'gripper'))
 
-            ## computing the intermediate positions ##
-            T_og_inter = Tog.matrix
-
-            T_og_inter[2,3] = ? #T_og_inter[2,3] + 0.1 #intermediate position at 10 cm in the z direction
-            T_wg_inter = np.matmul(T_wo_inter, T_og_inter)
-
-            T_world_grasps_inter.append(RigidTransform(T_wg_inter[:3, :3], T_wg_inter[:3, 3], 'world', 'gripper'))
-
 
             print('T_world_grasp')
             print(T_world_grasps[i])
             print('')
-            print('T_world_grasp_inter')
-            print(T_world_grasps_inter[i])
-            print('')
+
 
         for T_world_grasp in T_world_grasps:
             repeat = True
             #print('GRASP')
-            
-            
+
+
             while repeat:
-                execute_grasp(T_world_grasp, planner, gripper, T_world_grasp_inter)
+                execute_grasp(T_world_grasp, planner, gripper)
                 repeat = raw_input("repeat? [y|n] ") == 'y'
-            
+
     else:
         T_grasp_worlds = grasping_policy.top_n_actions(mesh, args.obj)
-
