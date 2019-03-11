@@ -50,10 +50,10 @@ class ObjectTemplate(object):
         return self.T_ar_obj.translation
 
 OBJECT_TEMPLATES = {
-    ObjectTemplate(name='pawn', ar_marker='ar_marker_1', t_ar_obj=[0.06, 0.08, 0.106]),
+    ObjectTemplate(name='pawn', ar_marker='ar_marker_1', t_ar_obj=[-0.062, -0.08, 0.065]),
     ObjectTemplate(name='gearbox', ar_marker='ar_marker_1', t_ar_obj=[-0.067, -0.06195, 0.056]),
     # ObjectTemplate(name='gearbox', ar_marker='ar_marker_9', t_ar_obj=[-0.11, 0.06, 0.056]),
-    ObjectTemplate(name='mount2', ar_marker='ar_marker_10', t_ar_obj=[-0.103, -0.064, 0.038]) # has to be changed
+    ObjectTemplate(name='nozzle', ar_marker='ar_marker_1', t_ar_obj=[0.084, -0.049, 0.032]) # has to be changed
 }
 
 if __name__ == '__main__':

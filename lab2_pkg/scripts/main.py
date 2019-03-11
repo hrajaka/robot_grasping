@@ -134,73 +134,53 @@ def execute_grasp(T_world_grasp, planner, gripper):
     open_gripper()
 
     print('---------- MOVING TO INTERMEDIATE POSITION ----------')
-    ## generating the PoseStamped ##
     temp_matrix = np.array([[1, 0, 0, 0],
                             [0, 1, 0, 0],
                             [0, 0, 1, -0.1],
                             [0, 0, 0, 1]])
-    T1 = np.matpmul(T_world_graspr, temp_matrix))
+    T1 = np.matmul(T_world_grasp.matrix, temp_matrix)
     pose_stamped_1 = matrixToPoseStamped(T1)
 
-    ## creating the plan ##
-    print('creating plan')
     plan_1 = planner.plan_to_pose(pose_stamped_1)
 
-    ## executing the plan ##
     planner.execute_plan(plan_1)
 
     print('---------- MOVING TO FINAL POSITION ----------')
-    ## generating the PoseStamped ##
     pose_stamped_2 = RigidTransformToPoseStamped(T_world_grasp)
 
-    ## creating the plan ##
-    print('creating plan')
     plan_2 = planner.plan_to_pose(pose_stamped_2)
 
-    ## executing the plan ##
     planner.execute_plan(plan_2)
 
-    ## closing gripper ##
     print('----------CLOSING GRIPPER----------')
     close_gripper()
 
     print('---------- MOVING TO UP POSITION ----------')
-    ## generating the PoseStamped ##
     pose_stamped_3 = RigidTransformToPoseStamped(T_world_grasp)
     pose_stamped_3.pose.position.z = pose_stamped_3.pose.position.z + 0.3
 
-    ## creating the plan ##
-    print('creating plan')
     plan_3 = planner.plan_to_pose(pose_stamped_3)
 
-    ## executing the plan ##
     planner.execute_plan(plan_3)
 
     print('---------- MOVING TO LATERAL POSITION ----------')
-    ## generating the PoseStamped ##
     pose_stamped_4 = RigidTransformToPoseStamped(T_world_grasp)
-    pose_stamped_4.pose.position.y = pose_stamped_4.pose.position.y + 0.1
+    pose_stamped_4.pose.position.y = pose_stamped_4.pose.position.y + 0.2
 
-    ## creating the plan ##
-    print('creating plan')
     plan_4 = planner.plan_to_pose(pose_stamped_4)
 
-    ## executing the plan ##
     planner.execute_plan(plan_4)
 
     print('----------OPENING GRIPPER----------')
     open_gripper()
 
     print('---------- MOVING TO UP POSITION NBR 2 ----------')
-    ## generating the PoseStamped ##
     pose_stamped_5 = pose_stamped_4
     pose_stamped_5.pose.position.z = pose_stamped_5.pose.position.z + 0.3
+    pose_stamped_5.pose.position.y = pose_stamped_5.pose.position.y - 0.2
 
-    ## creating the plan ##
-    print('creating plan')
     plan_5 = planner.plan_to_pose(pose_stamped_5)
 
-    ## executing the plan ##
     planner.execute_plan(plan_5)
 
 
@@ -256,16 +236,7 @@ if __name__ == '__main__':
     # Mesh loading and pre-processing
     mesh = trimesh.load_mesh('objects/{}.obj'.format(args.obj))
     T_world_obj = lookup_transform(args.obj)
-    '''
-    try: # try to lookup trasnsform from world to object with ar tag
-        T_world_obj = lookup_transform(args.obj)
-    except: # ar tag doesnt exist
-        T_world_obj_trans = np.array([0.59, -0.51, -0.24])
-        T_world_obj_rot = np.array([[-1, 0, 0],
-                                    [0,  0, 1],
-                                    [0, 1,  0]])
-        T_world_obj = RigidTransform(T_world_obj_rot, T_world_obj_trans, 'world', 'obj')
-    '''
+
     print('T_world_obj')
     print(T_world_obj)
     print('')
@@ -282,14 +253,6 @@ if __name__ == '__main__':
         args.metric
     )
 
-    '''
-    G_rot = np.eye(3)
-    G_trans = np.array([0.02, 0, 0])
-    G = RigidTransform(G_rot, G_trans, 'object', 'gripper')
-
-    grasping_policy.vis_transform(mesh, G)
-    '''
-
     # Each grasp is represented by T_grasp_world, a RigidTransform defining the
     # position of the end effector
 
@@ -301,13 +264,9 @@ if __name__ == '__main__':
 
         T_obj_grasps = grasping_policy.top_n_actions(mesh, args.obj)
         T_world_grasps = []
-        # T_world_grasps_inter = []
 
         for i, Tog in enumerate(T_obj_grasps):
             # print('GRASP # {}'.format(i))
-            # print('T_obj_grasp')
-            # print(Tog)
-            # print('')
 
             ## computing the final positions ##
             T_wo = T_world_obj.matrix
@@ -315,7 +274,6 @@ if __name__ == '__main__':
             T_wg = np.matmul(T_wo, T_og)
 
             T_world_grasps.append(RigidTransform(T_wg[:3, :3], T_wg[:3, 3], 'world', 'gripper'))
-
 
             print('T_world_grasp')
             print(T_world_grasps[i])

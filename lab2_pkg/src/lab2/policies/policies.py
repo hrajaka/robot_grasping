@@ -22,12 +22,14 @@ from lab2.utils import length, normalize, rotation_3d
 
 # YOUR CODE HERE
 # probably don't need to change these (BUT confirm that they're correct)
-MAX_HAND_DISTANCE = 0.12
+MAX_HAND_DISTANCE = 0.06
 # MAX_HAND_DISTANCE = .04
 
-MIN_HAND_DISTANCE = .05
+MIN_HAND_DISTANCE = 0.02
 CONTACT_MU = 0.5
 CONTACT_GAMMA = 0.1
+finger_length = 0.1
+
 
 # TODO
 OBJECT_MASS = {'gearbox': .25, 'nozzle': .25, 'pawn': .25}
@@ -87,8 +89,7 @@ class GraspingPolicy():
         
         midpoint = (grasp_vertices[0] + grasp_vertices[1]) / 2
 
-        finger_length = 0.06
-        gripper_half_width = 0.06
+        gripper_half_width = MAX_HAND_DISTANCE / 2
         
         z = normalize(approach_direction)
         y = normalize(grasp_vertices[0] - grasp_vertices[1])
@@ -157,7 +158,7 @@ class GraspingPolicy():
                     continue
                 # checking if too close to ground
                 # if vertices[idx1][2] < 0.0 or vertices[idx2][2] < 0.0: #has to be changed when we apply the transform to the mesh
-                if vertices[idx1][2] < z_table + 0.06 or vertices[idx2][2] < z_table + 0.06:
+                if vertices[idx1][2] < z_table + 0.03 or vertices[idx2][2] < z_table + 0.03:
                     continue
 
                 # at this point it means we have a valid pair of points
@@ -268,7 +269,7 @@ class GraspingPolicy():
         grasp_qualities : mx' :obj:`numpy.ndarray`
             vector of grasp qualities for each grasp
         """
-        L = 0.06 # gripper half width
+        L = MAX_HAND_DISTANCE / 2 # gripper half width
 
         # transform from gripper to contact 1
         G_gc1 = np.array([[1,  0,  0,    0],
@@ -361,7 +362,6 @@ class GraspingPolicy():
         ## initalizing stuff ##
         visualize = False
         nb_directions_to_test = 6
-        finger_length = 0.06
         normal_scale = 0.01
         plane_normal = normalize(grasp_vertices[0] - grasp_vertices[1])
     
@@ -480,7 +480,7 @@ class GraspingPolicy():
         grasp_qualities = self.score_grasps(grasp_vertices, grasp_normals, object_mass)
 
         ## visualizing all grasps ##
-        # self.vis(mesh, grasp_vertices, np.array(grasp_qualities), np.array(grasp_normals))
+        self.vis(mesh, grasp_vertices, np.array(grasp_qualities), np.array(grasp_normals))
 
         ## keeping only the best n_execute ##
         grasp_vertices = list(grasp_vertices)
