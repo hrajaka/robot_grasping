@@ -5,9 +5,10 @@ Author: Chris Correa
 """
 # may need more imports
 import numpy as np
-from lab2.utils import vec, adj, look_at_general
+from lab2.utils import vec, adj, look_at_general, hat
 import cvxpy as cvx
 import math
+import scipy
 
 def compute_force_closure(vertices, normals, num_facets, mu, gamma, object_mass):
     """
@@ -38,8 +39,6 @@ def compute_force_closure(vertices, normals, num_facets, mu, gamma, object_mass)
     # to be in force closure with two contact points, we need the line between the two points to be in the friction cones
     # we compute the angle between the connecting line and the normal
     # if this angle is smaller than pi/2 - arctan(mu), then it's in force closure
-
-    # we might need to put the angles in the 0 -> pi/2 interval to compare them
 
     ## checking for first point of contact ##
     vec_between_vertices = vertices[1]-vertices[0]
@@ -84,14 +83,6 @@ def get_grasp_map(vertices, normals, num_facets, mu, gamma):
     -------
     :obj:`numpy.ndarray` grasp map
     """
-    # we consider soft contact model, so :
-    # Bi = 1 0 0 0
-    #      0 1 0 0
-    #      0 0 1 1
-    #      0 0 0 0
-    #      0 0 0 0
-    #      0 0 0 1
-
 
     B1 = np.array([[1, 0, 0, 0],
                    [0, 1, 0, 0],
@@ -107,10 +98,17 @@ def get_grasp_map(vertices, normals, num_facets, mu, gamma):
                    [0, 0, 0, 0],
                    [0, 0, 0, 1]])
 
-    Adj_g1inv_T = np.eye(6) #TO CHANGE
-    G1 = np.matmul(Adj_g1inv_T, B1)
-    Adj_g1inv_T = np.eye(6) #TO CHANGE
-    G2 = np.matmul(Adj_g2inv_T, B2)
+    g1 = np.zeros((4,4))
+    g1[:3, :3] = hat(normals[0])
+    g1[:3, 3] = vertices[0]
+    g1[3, 3] = 1
+    G1 = np.matmul(adj(g1.T), B1)
+
+    g12= np.zeros((4,4))
+    g2[:3, :3] = hat(normals[0])
+    g2[:3, 3] = vertices[0]
+    g2[3, 3] = 1
+    G2 = np.matmul(adj(g1.T), B2)
 
     G = [G1, G2]
 
@@ -145,7 +143,8 @@ def contact_forces_exist(vertices, normals, num_facets, mu, gamma, desired_wrenc
     # we look for a solution to the system: desired_wrench = G @ f
 
     ## we compute the wrench ##
-    f = np.linalg.lstsq(G, desired_wrench)
+    # f = np.linalg.lstsq(G, desired_wrench)
+    f = scipy.optimize.nnls(G, desired_wrench) # to get non negative solution
 
     # WARNING this might not work because the least square solution might not work, but other solutions might be in the friction cone
     # cf a comment by Ryan OGorman on Piazza
@@ -200,7 +199,7 @@ def compute_gravity_resistance(vertices, normals, num_facets, mu, gamma, object_
     G = get_grasp_map(vertices, normals, num_facets, mu, gamma)
 
     ## we build the gravity wrench and see if it can be resisted ##
-    gravity_wrench = np.array([0, 0, -9.81*object_mass, 0, 0, 0])
+    gravity_wrench = np.array([0, 0, -9.81*object_mass, 0, 0, 0]) # is the torque non zero? don't think so because applied at center of mass but make sure
 
     # WARNING: cf comment around line 150 about why this might not work
     can_resist = contact_forces_exist(vertices, normals, num_facets, mu, gamma, gravity_wrench)
