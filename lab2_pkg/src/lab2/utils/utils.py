@@ -15,6 +15,15 @@ try:
 except:
     ros_enabled = False
 
+def g_inv(g):
+    R = g[0:3,0:3]
+    p = g[0:3,3]
+
+    g_inverse = g
+    g_inverse[0:3,0:3] = R.T
+    g_inverse[0:3,3] = -1*np.matmul(R.T, p)
+    return g_inverse
+
 def length(vec):
     """
     Returns the length of a 1 dimensional numpy vector
@@ -134,7 +143,7 @@ def adj(g):
     p = g[0:3,3]
     result = np.zeros((6, 6))
     result[0:3,0:3] = R
-    result[0:3,3:6] = hat(p) * R
+    result[0:3,3:6] = np.matmul(hat(p), R)
     result[3:6,3:6] = R
     return result
 

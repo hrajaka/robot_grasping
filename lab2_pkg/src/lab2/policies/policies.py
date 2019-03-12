@@ -22,10 +22,10 @@ from lab2.utils import length, normalize, rotation_3d
 
 # YOUR CODE HERE
 # probably don't need to change these (BUT confirm that they're correct)
-MAX_HAND_DISTANCE = 0.06
+MAX_HAND_DISTANCE = 0.07
 # MAX_HAND_DISTANCE = .04
 
-MIN_HAND_DISTANCE = 0.02
+MIN_HAND_DISTANCE = MAX_HAND_DISTANCE - 0.035
 CONTACT_MU = 0.5
 CONTACT_GAMMA = 0.1
 finger_length = 0.1

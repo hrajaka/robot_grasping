@@ -102,15 +102,25 @@ def get_grasp_map(vertices, normals, num_facets, mu, gamma):
     g1[:3, :3] = hat(normals[0])
     g1[:3, 3] = vertices[0]
     g1[3, 3] = 1
-    G1 = np.matmul(adj(g1.T), B1)
 
-    g12= np.zeros((4,4))
+    #g1 = np.linalg.inv(g1)
+    g1 = g_inv(g1)
+    
+    G1 = np.matmul(adj(g1).T, B1)
+
+    g2 = np.zeros((4,4))
     g2[:3, :3] = hat(normals[0])
     g2[:3, 3] = vertices[0]
     g2[3, 3] = 1
-    G2 = np.matmul(adj(g1.T), B2)
 
-    G = [G1, G2]
+    g2 = np.linalg.inv(g2)
+
+    G2 = np.matmul(adj(g2).T, B2)
+
+
+    G = np.zeros((6,8))
+    G[:,:4] = G1
+    G[:,4:] = G2
 
     return G
     # raise NotImplementedError
@@ -144,7 +154,8 @@ def contact_forces_exist(vertices, normals, num_facets, mu, gamma, desired_wrenc
 
     ## we compute the wrench ##
     # f = np.linalg.lstsq(G, desired_wrench)
-    f = scipy.optimize.nnls(G, desired_wrench) # to get non negative solution
+    G = get_grasp_map(vertices, normals, num_facets, mu, gamma)
+    f, _ = scipy.optimize.nnls(G, desired_wrench) # to get non negative solution
 
     # WARNING this might not work because the least square solution might not work, but other solutions might be in the friction cone
     # cf a comment by Ryan OGorman on Piazza
@@ -161,7 +172,7 @@ def contact_forces_exist(vertices, normals, num_facets, mu, gamma, desired_wrenc
             return False
 
         # condition on the torque
-        if abs(force[4]) > gamma * force[2]:
+        if abs(force[3]) > gamma * force[2]:
             return False
 
     return True
