@@ -22,8 +22,10 @@ from lab2.utils import length, normalize, rotation_3d
 
 # YOUR CODE HERE
 # probably don't need to change these (BUT confirm that they're correct)
-MAX_HAND_DISTANCE = 0.06
+MAX_HAND_DISTANCE = 0.065
 # MAX_HAND_DISTANCE = .04
+#MAX_HAND_DISTANCE = 0.12
+
 
 MIN_HAND_DISTANCE = 0.02
 CONTACT_MU = 0.5
@@ -196,13 +198,15 @@ class GraspingPolicy():
 
         if self.metric_name == 'compute_force_closure':
             for i in range(grasp_vertices.shape[0]):
-                grasp_qualities.append(compute_force_closure(grasp_vertices[i], grasp_normals[i], self.n_facets, CONTACT_MU, CONTACT_GAMMA, object_mass))
+                grasp_qualities.append(compute_force_closure(grasp_vertices[i], grasp_normals[i], self.n_facets, CONTACT_MU, CONTACT_GAMMA, object_mass, MIN_HAND_DISTANCE, MAX_HAND_DISTANCE))
         elif self.metric_name == 'compute_gravity_resistance':
             for i in range(grasp_vertices.shape[0]):
                 grasp_qualities.append(compute_gravity_resistance(grasp_vertices[i], grasp_normals[i], self.n_facets, CONTACT_MU, CONTACT_GAMMA, object_mass))
         else:
             for i in range(grasp_vertices.shape[0]):
-                grasp_qualities.append(compute_custom_metric(grasp_vertices[i], grasp_normals[i], self.n_facets, CONTACT_MU, CONTACT_GAMMA, object_mass))
+                if i % 10 == 0:
+                    print('testing vertex {} for robust force closure'.format(i))
+                grasp_qualities.append(compute_custom_metric(grasp_vertices[i], grasp_normals[i], self.n_facets, CONTACT_MU, CONTACT_GAMMA, object_mass, MIN_HAND_DISTANCE, MAX_HAND_DISTANCE))
 
         return grasp_qualities
 
@@ -479,8 +483,10 @@ class GraspingPolicy():
         print('COMPUTING GRASP QUALITIES')
         grasp_qualities = self.score_grasps(grasp_vertices, grasp_normals, object_mass)
 
+
+
         ## visualizing all grasps ##
-        self.vis(mesh, grasp_vertices, np.array(grasp_qualities), np.array(grasp_normals))
+        #self.vis(mesh, grasp_vertices, np.array(grasp_qualities), np.array(grasp_normals))
 
         ## keeping only the best n_execute ##
         grasp_vertices = list(grasp_vertices)
@@ -504,8 +510,10 @@ class GraspingPolicy():
         best_grasp_qualities = np.array(best_grasp_qualities)
         best_grasp_normals = np.array(best_grasp_normals)
 
+        print('BEST GRASPS:')
+        print(best_grasp_qualities)
         ## visualizing the best grasps ##
-        # self.vis(mesh, best_grasp_vertices, best_grasp_qualities, best_grasp_normals)
+        self.vis(mesh, best_grasp_vertices, best_grasp_qualities, best_grasp_normals)
 
 
         ## generating the hand poses ##

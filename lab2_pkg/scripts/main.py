@@ -1,6 +1,5 @@
-#!/home/cc/ee106b/sp19/class/ee106b-aai/virtualenvironment/my_new_app/bin/python
-
-# #!/home/cc/ee106b/sp19/class/ee106b-abj/python-virtual-environments/env/bin/python
+#!/home/cc/ee106b/sp19/class/ee106b-abj/python-virtual-environments/env/bin/python
+# #!/home/cc/ee106b/sp19/class/ee106b-aai/virtualenvironment/my_new_app/bin/python
 
 
 """
@@ -235,11 +234,9 @@ if __name__ == '__main__':
 
     # Mesh loading and pre-processing
     mesh = trimesh.load_mesh('objects/{}.obj'.format(args.obj))
-    T_world_obj = lookup_transform(args.obj)
+    
 
-    print('T_world_obj')
-    print(T_world_obj)
-    print('')
+    
     #mesh.apply_transform(T_world_obj.matrix)
     mesh.fix_normals()
 
@@ -258,6 +255,10 @@ if __name__ == '__main__':
 
     # Execute each grasp on the baxter / sawyer
     if args.baxter:
+        T_world_obj = lookup_transform(args.obj)
+        print('T_world_obj')
+        print(T_world_obj)
+        print('')
         gripper = baxter_gripper.Gripper(args.arm)
         gripper.calibrate()
         planner = PathPlanner('{}_arm'.format(args.arm))

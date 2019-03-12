@@ -10,7 +10,7 @@ import cvxpy as cvx
 import math
 import scipy
 
-def compute_force_closure(vertices, normals, num_facets, mu, gamma, object_mass):
+def compute_force_closure(vertices, normals, num_facets, mu, gamma, object_mass, gripper_min_width, gripper_max_width):
     """
     Compute the force closure of some object at contacts, with normal vectors
     stored in normals You can use the line method described in HW2.  if you do you
@@ -42,6 +42,11 @@ def compute_force_closure(vertices, normals, num_facets, mu, gamma, object_mass)
 
     ## checking for first point of contact ##
     vec_between_vertices = vertices[1]-vertices[0]
+
+    grasp_length = np.linalg.norm(vec_between_vertices)
+
+    if grasp_length < gripper_min_width or grasp_length > gripper_max_width:
+        return 0
 
     angle = np.arccos( np.dot(normals[0], vec_between_vertices) / (np.linalg.norm(normals[0]) * np.linalg.norm(vec_between_vertices)))
 
@@ -208,9 +213,9 @@ def compute_gravity_resistance(vertices, normals, num_facets, mu, gamma, object_
 
     # raise NotImplementedError
 
-def compute_custom_metric(vertices, normals, num_facets, mu, gamma, object_mass):
+def compute_custom_metric(vertices, normals, num_facets, mu, gamma, object_mass, gripper_min_width, gripper_max_width):
     """
-    I suggest Ferrari Canny, but feel free to do anything other metric you find.
+    Robust Force Closure
 
     Parameters
     ----------
@@ -234,5 +239,24 @@ def compute_custom_metric(vertices, normals, num_facets, mu, gamma, object_mass)
     """
     # YOUR CODE HERE :)
 
-    return 42
+    num_tests = 200
+
+    parameters = np.array([gripper_min_width, gripper_max_width, mu])
+    num_parameters = len(parameters)
+
+    std_params = np.array([0.005, 0.005, 0.1])
+
+    num_success = 0
+    for i in range(num_tests):
+        #if i%10 == 0:
+        #    print(' test {}'.format(i))
+        new_params = np.random.normal(loc=parameters, scale=std_params)
+        new_mu = new_params[2]
+        new_min_width = new_params[0]
+        new_max_width = new_params[1]
+        num_success += compute_force_closure(vertices, normals, num_facets, new_mu, gamma, object_mass, new_min_width, new_max_width)
+
+    score = float(num_success) / num_tests
+
+    return score
     # raise NotImplementedError
