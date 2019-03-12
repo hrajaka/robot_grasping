@@ -36,9 +36,6 @@ def compute_force_closure(vertices, normals, num_facets, mu, gamma, object_mass,
     -------
     float : quality of the grasp
     """
-    # to be in force closure with two contact points, we need the line between the two points to be in the friction cones
-    # we compute the angle between the connecting line and the normal
-    # if this angle is smaller than pi/2 - arctan(mu), then it's in force closure
 
     ## checking for first point of contact ##
     vec_between_vertices = vertices[1]-vertices[0]
@@ -63,7 +60,6 @@ def compute_force_closure(vertices, normals, num_facets, mu, gamma, object_mass,
 
     return 1
 
-    # raise NotImplementedError
 
 def get_grasp_map(vertices, normals, num_facets, mu, gamma):
     """
@@ -128,7 +124,6 @@ def get_grasp_map(vertices, normals, num_facets, mu, gamma):
     G[:,4:] = G2
 
     return G
-    # raise NotImplementedError
 
 def contact_forces_exist(vertices, normals, num_facets, mu, gamma, desired_wrench):
     """
@@ -158,12 +153,9 @@ def contact_forces_exist(vertices, normals, num_facets, mu, gamma, desired_wrenc
     # we look for a solution to the system: desired_wrench = G @ f
 
     ## we compute the wrench ##
-    # f = np.linalg.lstsq(G, desired_wrench)
     G = get_grasp_map(vertices, normals, num_facets, mu, gamma)
     f, _ = scipy.optimize.nnls(G, desired_wrench) # to get non negative solution
 
-    # WARNING this might not work because the least square solution might not work, but other solutions might be in the friction cone
-    # cf a comment by Ryan OGorman on Piazza
 
     ## we check if it belongs to the friction cone ##
     forces = [f[:4], f[4:]]
@@ -182,7 +174,6 @@ def contact_forces_exist(vertices, normals, num_facets, mu, gamma, desired_wrenc
 
     return True
 
-    # raise NotImplementedError
 
 def compute_gravity_resistance(vertices, normals, num_facets, mu, gamma, object_mass):
     """
@@ -209,20 +200,16 @@ def compute_gravity_resistance(vertices, normals, num_facets, mu, gamma, object_
     -------
     float : quality of the grasp
     """
-    # YOUR CODE HERE (contact forces exist may be useful here)
 
     ## we compute the grasp matrix ##
     G = get_grasp_map(vertices, normals, num_facets, mu, gamma)
 
     ## we build the gravity wrench and see if it can be resisted ##
-    gravity_wrench = np.array([0, 0, -9.81*object_mass, 0, 0, 0]) # is the torque non zero? don't think so because applied at center of mass but make sure
-
-    # WARNING: cf comment around line 150 about why this might not work
+    gravity_wrench = np.array([0, 0, -9.81*object_mass, 0, 0, 0])
     can_resist = contact_forces_exist(vertices, normals, num_facets, mu, gamma, gravity_wrench)
 
     return can_resist
 
-    # raise NotImplementedError
 
 def compute_custom_metric(vertices, normals, num_facets, mu, gamma, object_mass, gripper_min_width, gripper_max_width):
     """
@@ -248,9 +235,8 @@ def compute_custom_metric(vertices, normals, num_facets, mu, gamma, object_mass,
     -------
     float : quality of the grasp
     """
-    # YOUR CODE HERE :)
 
-    num_tests = 200
+    num_tests = 500
 
     parameters = np.array([gripper_min_width, gripper_max_width, mu])
     num_parameters = len(parameters)
@@ -270,4 +256,27 @@ def compute_custom_metric(vertices, normals, num_facets, mu, gamma, object_mass,
     score = float(num_success) / num_tests
 
     return score
-    # raise NotImplementedError
+
+def robust_force_closure(vertices, normals, num_facets, mu, gamma, object_mass, gripper_min_width, gripper_max_width, stds):
+    '''
+    stds = standard deviations to use
+    '''
+    num_tests = 200
+
+    parameters = np.array([gripper_min_width, gripper_max_width, mu])
+    num_parameters = len(parameters)
+
+    std_params = stds
+
+    num_success = 0
+    for i in range(num_tests):
+        new_params = np.random.normal(loc=parameters, scale=std_params)
+        new_mu = new_params[2]
+        new_min_width = new_params[0]
+        new_max_width = new_params[1]
+        num_success += compute_force_closure(vertices, normals, num_facets, new_mu, gamma, object_mass, new_min_width, new_max_width)
+
+    score = float(num_success) / num_tests
+
+    return score
+

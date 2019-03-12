@@ -10,27 +10,19 @@ from autolab_core import RigidTransform
 import trimesh
 from visualization import Visualizer3D as vis3d
 import random
-import matplotlib as plt
+import matplotlib.pyplot as plt
 
 # 106B lab imports
 from lab2.metrics import (
     compute_force_closure,
     compute_gravity_resistance,
-    compute_custom_metric
+    compute_custom_metric,
+    robust_force_closure
 )
 from lab2.utils import length, normalize, rotation_3d
 
-# YOUR CODE HERE
-# probably don't need to change these (BUT confirm that they're correct)
-
-
 
 MAX_HAND_DISTANCE = 0.085
-
-# MAX_HAND_DISTANCE = .04
-#MAX_HAND_DISTANCE = 0.12
-
-
 MIN_HAND_DISTANCE = 0.045
 CONTACT_MU = 0.5
 CONTACT_GAMMA = 0.1
@@ -90,8 +82,6 @@ class GraspingPolicy():
         # - translation (aka 3x1 vector)
         # - from_frame (aka str)
         # - to_frame (aka str)
-
-        # apparently it is supposed to be in the object coordinates (cf function execute_grasp in main.py)
         
         midpoint = (grasp_vertices[0] + grasp_vertices[1]) / 2
 
@@ -137,16 +127,11 @@ class GraspingPolicy():
             grasps normals.  Each grasp containts two contact points.  Each vertex normal
             is a 3 dimensional vector, and there are n_grasps of them, hence the shape n_graspsx2x3
         """
-        # find the distance the vertices
-        # if bigger than gripper, remove it from list
-        # find the distance to the table
-        # if too small remove from list
-
         grasp_vertices = []
         grasp_normals = []
         nbr_grasps_found = 0
         z_table = min(vertices[:, 2]) #not exactly true but close
-        print('z_table', z_table)
+        #print('z_table', z_table)
 
         for i in range(self.n_grasps):
             hasFoundValidGrasp = False
@@ -543,3 +528,143 @@ class GraspingPolicy():
 
         return hand_poses
     
+    def parameter_sweep(self, mesh, obj_name):
+        print('------------------------')
+        print('RUNNING PARAMETER SWEEP')
+        print('------------------------')
+
+        print('SAMPLING VERTICES')
+        vertices, ids = trimesh.sample.sample_surface_even(mesh, self.n_vert)
+        normals = mesh.face_normals[ids] #face or vertex ????
+        normals = -1 * normals
+
+        ## sampling some grasps ##
+        print('SAMPLING GRASPS FROM GEARBOX')
+
+        grasp_vertices, grasp_normals = self.sample_grasps(vertices, normals)
+        object_mass = OBJECT_MASS[obj_name]
+
+        print('vertices:')
+        print(grasp_vertices.shape)
+
+        ## computing grasp qualities and finding the n best ##
+        print('COMPUTING GRASP QUALITIES')
+        grasp_qualities = []
+
+        stds = np.array([0.005, 0.005, 0.1])
+        for i in range(grasp_vertices.shape[0]):
+            if i % 10 == 0:
+                print('testing vertex {} for robust force closure'.format(i))
+            grasp_qualities.append(robust_force_closure(grasp_vertices[i], grasp_normals[i], self.n_facets, CONTACT_MU, CONTACT_GAMMA, object_mass, MIN_HAND_DISTANCE, MAX_HAND_DISTANCE, stds))
+        grasp_qualities = np.array(grasp_qualities)
+            
+
+        
+        v1 = grasp_vertices[:,0,:]
+        v2 = grasp_vertices[:,1,:]
+        q = np.array([grasp_qualities]).T
+        
+        data=np.hstack((v1,v2,q))
+        print('v1x,v1y,v1z,v2x,v2y,v2z,quality')
+        print('data:')
+        print(data.shape)
+
+        ind = np.argmax(grasp_qualities)
+        print('index of max: {}'.format(ind))
+
+        best_vertices = grasp_vertices[ind]
+        best_normals = grasp_normals[ind]
+        best_quality = grasp_qualities[ind]
+
+        print('BEST RESULT:')
+        print('vertices:')
+        print(grasp_vertices[ind])
+        print('normals')
+        print(grasp_normals[ind])
+        print('quality')
+        print(grasp_qualities[ind])
+
+        best_vertices = grasp_vertices[ind]
+        best_normals = grasp_normals[ind]
+        best_quality = grasp_qualities[ind]
+
+        #EXPERIMENTAL RESULT FOR THIS GRASP
+        SUCCESS_RATE = 0.8
+
+        # sweep coefficient of friction
+        num_test_points = 15
+        min_len_test = np.linspace(stds[0]-0.005, stds[0]+0.005, num_test_points)
+        max_len_test = np.linspace(stds[1]-0.005, stds[1]+0.005, num_test_points)
+        mu_test =      np.linspace(stds[2]-0.1, stds[2]+0.1, num_test_points)
+        
+        new_qualities = []
+        square_errors = []
+
+        for mu in mu_test:
+            new_stds = np.array([0.005, 0.005, mu])
+            new_quality = robust_force_closure(best_vertices, best_normals, self.n_facets, CONTACT_MU, CONTACT_GAMMA, object_mass, MIN_HAND_DISTANCE, MAX_HAND_DISTANCE, new_stds)
+            new_qualities.append(new_quality)
+            square_errors.append((SUCCESS_RATE - new_quality) ** 2)
+        new_qualities = np.array(new_qualities)
+        square_errors = np.array(square_errors)
+
+        min_index = np.argmin(square_errors)
+        print('best std of mu: {}'.format(mu_test[min_index]))
+
+        plt.figure()
+        plt.grid(True)
+        plt.axvline(color='k')
+        plt.axhline(color='k')
+        plt.title('Varying standard deviation of coefficient of friction')
+        plt.xlabel('std of mu')
+        plt.ylabel('square-error')
+        plt.plot(mu_test, square_errors, color='r')
+        #plt.show()
+
+        new_qualities = []
+        square_errors = []
+
+        for m in min_len_test:
+            new_stds = np.array([m, 0.005, 0.1])
+            new_quality = robust_force_closure(best_vertices, best_normals, self.n_facets, CONTACT_MU, CONTACT_GAMMA, object_mass, MIN_HAND_DISTANCE, MAX_HAND_DISTANCE, new_stds)
+            new_qualities.append(new_quality)
+            square_errors.append((SUCCESS_RATE - new_quality) ** 2)
+        new_qualities = np.array(new_qualities)
+        square_errors = np.array(square_errors)
+
+        min_index = np.argmin(square_errors)
+        print('best std of min gripper length: {}'.format(min_len_test[min_index]))
+
+        plt.figure()
+        plt.grid(True)
+        plt.axvline(color='k')
+        plt.axhline(color='k')
+        plt.title('Varying standard deviation of min gripper length')
+        plt.xlabel('std of len')
+        plt.ylabel('square-error')
+        plt.plot(min_len_test, square_errors, color='r')
+
+        new_qualities = []
+        square_errors = []
+
+        for m in max_len_test:
+            new_stds = np.array([0.005, m, 0.1])
+            new_quality = robust_force_closure(best_vertices, best_normals, self.n_facets, CONTACT_MU, CONTACT_GAMMA, object_mass, MIN_HAND_DISTANCE, MAX_HAND_DISTANCE, new_stds)
+            new_qualities.append(new_quality)
+            square_errors.append((SUCCESS_RATE - new_quality) ** 2)
+        new_qualities = np.array(new_qualities)
+        square_errors = np.array(square_errors)
+
+        min_index = np.argmin(square_errors)
+        print('best std of max gripper length: {}'.format(max_len_test[min_index]))
+
+        plt.figure()
+        plt.grid(True)
+        plt.axvline(color='k')
+        plt.axhline(color='k')
+        plt.title('Varying standard deviation of max gripper length')
+        plt.xlabel('std of len')
+        plt.ylabel('square-error')
+        plt.plot(min_len_test, square_errors, color='r')
+
+        plt.show()

@@ -201,8 +201,8 @@ def parse_args():
         you have to do is check if that vector can be represented by a POSITIVE
         linear combination of the n_facets vectors.  Default: 32"""
     )
-    parser.add_argument('-n_grasps', type=int, default=500, help=
-        'How many grasps you want to sample.  Default: 500')
+    parser.add_argument('-n_grasps', type=int, default=5, help=
+        'How many grasps you want to sample.  Default: 5')
     parser.add_argument('-n_execute', type=int, default=5, help=
         'How many grasps you want to execute.  Default: 5')
     parser.add_argument('-metric', '-m', type=str, default='compute_force_closure', help=
@@ -232,12 +232,12 @@ if __name__ == '__main__':
 
 
     # Mesh loading and pre-processing
-    mesh = trimesh.load_mesh('objects/{}.obj'.format(args.obj))
+    mesh_gearbox = trimesh.load_mesh('objects/gearbox.obj')
     
 
     
     #mesh.apply_transform(T_world_obj.matrix)
-    mesh.fix_normals()
+    mesh_gearbox.fix_normals()
 
 
     # This policy takes a mesh and returns the best actions to execute on the robot
@@ -249,38 +249,5 @@ if __name__ == '__main__':
         args.metric
     )
 
-    # Each grasp is represented by T_grasp_world, a RigidTransform defining the
-    # position of the end effector
+    grasping_policy.parameter_sweep(mesh_gearbox, 'gearbox')
 
-    # Execute each grasp on the baxter / sawyer
-    if args.baxter:
-        T_world_obj = lookup_transform(args.obj)
-        print('T_world_obj')
-        print(T_world_obj)
-        print('')
-        gripper = baxter_gripper.Gripper(args.arm)
-        gripper.calibrate()
-        planner = PathPlanner('{}_arm'.format(args.arm))
-
-        T_obj_grasps = grasping_policy.top_n_actions(mesh, args.obj)
-        T_world_grasps = []
-
-        for i, Tog in enumerate(T_obj_grasps):
-
-            ## computing the final positions ##
-            T_wo = T_world_obj.matrix
-            T_og = Tog.matrix
-            T_wg = np.matmul(T_wo, T_og)
-
-            T_world_grasps.append(RigidTransform(T_wg[:3, :3], T_wg[:3, 3], 'world', 'gripper'))
-
-
-        for T_world_grasp in T_world_grasps:
-            repeat = True
-
-            while repeat:
-                execute_grasp(T_world_grasp, planner, gripper)
-                repeat = raw_input("repeat? [y|n] ") == 'y'
-
-    else:
-        T_grasp_worlds = grasping_policy.top_n_actions(mesh, args.obj)
