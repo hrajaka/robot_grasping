@@ -25,13 +25,13 @@ from lab2.utils import length, normalize, rotation_3d
 
 
 
-MAX_HAND_DISTANCE = 0.065
+MAX_HAND_DISTANCE = 0.085
 
 # MAX_HAND_DISTANCE = .04
 #MAX_HAND_DISTANCE = 0.12
 
 
-MIN_HAND_DISTANCE = MAX_HAND_DISTANCE - 0.035
+MIN_HAND_DISTANCE = 0.045
 CONTACT_MU = 0.5
 CONTACT_GAMMA = 0.1
 finger_length = 0.1
@@ -368,7 +368,7 @@ class GraspingPolicy():
     def compute_approach_direction(self, mesh, grasp_vertices, grasp_quality, grasp_normals):
 
         ## initalizing stuff ##
-        visualize = False
+        visualize = True
         nb_directions_to_test = 6
         normal_scale = 0.01
         plane_normal = normalize(grasp_vertices[0] - grasp_vertices[1])
@@ -488,7 +488,6 @@ class GraspingPolicy():
         grasp_qualities = self.score_grasps(grasp_vertices, grasp_normals, object_mass)
 
 
-
         ## visualizing all grasps ##
         #self.vis(mesh, grasp_vertices, np.array(grasp_qualities), np.array(grasp_normals))
 
@@ -516,6 +515,11 @@ class GraspingPolicy():
 
         print('BEST GRASPS:')
         print(best_grasp_qualities)
+        print(best_grasp_vertices[0])
+        print(best_grasp_vertices[1])
+        print(best_grasp_vertices[2])
+        print(best_grasp_vertices[3])
+        print(best_grasp_vertices[4])
         ## visualizing the best grasps ##
         self.vis(mesh, best_grasp_vertices, best_grasp_qualities, best_grasp_normals)
 
